@@ -1,0 +1,175 @@
+/* Messengers of Peace — signature map page */
+
+body.map-body {
+  background: linear-gradient(135deg, var(--green-deep), #1a5f1a);
+  min-height: 100vh;
+}
+
+.map-page-hero {
+  padding: 50px 0 30px;
+  text-align: center;
+  color: #fff;
+}
+
+.map-page-hero h1 { color: #fff; font-size: clamp(1.8rem, 3.6vw, 2.6rem); margin-bottom: 8px; }
+.map-page-hero p { color: #d8e6d8; margin-bottom: 0; }
+.map-page-hero .badge-org { display: inline-block; margin-top: 10px; font-weight: 700; color: var(--gold); }
+
+.map-shell {
+  background: #fff;
+  border-radius: 18px;
+  overflow: hidden;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.35);
+  margin-bottom: 60px;
+}
+
+.map-main {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  padding: 24px;
+}
+
+.map-section {
+  flex: 1 1 520px;
+  background: #f8f8f5;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+
+.map-container {
+  position: relative;
+  width: 100%;
+  height: 560px;
+  cursor: crosshair;
+  background: #eee;
+}
+
+.map-container img { width: 100%; height: 100%; object-fit: contain; display: block; }
+
+.map-caption {
+  text-align: center;
+  padding: 12px;
+  background: var(--cream);
+  color: var(--green-deep);
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.signature-dot {
+  position: absolute;
+  width: 13px;
+  height: 13px;
+  background: #d81c1c;
+  border-radius: 50%;
+  border: 3px solid #fff;
+  box-shadow: 0 0 8px rgba(216, 28, 28, 0.55);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.signature-dot.is-new { animation: cg-pulse 2s ease-out 3; }
+
+@keyframes cg-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(216, 28, 28, 0.65); }
+  70% { box-shadow: 0 0 0 12px rgba(216, 28, 28, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(216, 28, 28, 0); }
+}
+
+.signature-label {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.75);
+  color: #fff;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 12px;
+  white-space: nowrap;
+  transform: translate(-50%, 15px);
+  pointer-events: none;
+  font-weight: 600;
+}
+
+.map-sidebar {
+  flex: 1 1 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.sign-box {
+  background: var(--cream);
+  border: 2px solid var(--green-deep);
+  border-radius: 14px;
+  padding: 26px;
+}
+
+.sign-box h2 { color: var(--green-deep); font-size: 1.15rem; text-align: center; margin-bottom: 16px; }
+
+.sign-box form { display: flex; flex-direction: column; gap: 12px; }
+
+.sign-box input {
+  padding: 13px;
+  border-radius: var(--radius-sm);
+  border: 2px solid var(--tan);
+  font-family: var(--font-body);
+}
+
+.sign-box input:focus { outline: none; border-color: var(--green-deep); }
+
+.sign-box button {
+  padding: 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--green-deep);
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.sign-box button:hover { background: #147014; transform: translateY(-1px); }
+.sign-box button:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+
+.map-form-error { color: #b30000; font-size: 0.85rem; min-height: 1.2em; margin: 0; }
+
+.map-stats {
+  background: var(--green-deep);
+  color: #fff;
+  padding: 22px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.map-stats h2 { color: #fff; font-size: 2.4rem; margin-bottom: 4px; }
+.map-stats p { color: #dcefdc; margin-bottom: 0; }
+
+.recent-heading { color: var(--green-deep); margin-bottom: 10px; font-size: 1rem; }
+
+.signatures-list {
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  max-height: 340px;
+  overflow-y: auto;
+  border: 2px solid var(--green-deep);
+}
+
+.signature-item { padding: 10px; border-bottom: 1px solid #eee; font-size: 0.92rem; color: var(--ink); }
+.signature-item:last-child { border-bottom: none; }
+.signature-item .county { color: #777; }
+.signature-item .date { font-size: 0.78rem; color: #999; margin-top: 3px; }
+
+.signatures-list .empty-note { padding: 10px; color: #888; font-size: 0.88rem; }
+
+.map-footnote {
+  text-align: center;
+  padding: 18px;
+  background: rgba(0,0,0,0.15);
+  color: #cfe2cf;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 767px) {
+  .map-container { height: 380px; }
+}

@@ -1,0 +1,101 @@
+/* "What breaks peace" page */
+
+.disruptor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 22px;
+  margin-top: 44px;
+}
+
+.disruptor-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 30px 26px;
+  border: 1px solid rgba(38, 38, 32, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+.disruptor-card h3 { font-size: 1.12rem; margin: 14px 0 10px; }
+
+.disruptor-break { font-size: 0.95rem; margin-bottom: 14px; }
+
+.disruptor-repair {
+  font-size: 0.92rem;
+  background: var(--cream);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-bottom: 0;
+}
+
+.disruptor-repair span {
+  display: block;
+  font-weight: 700;
+  color: var(--green);
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.solver-section { background: var(--cream-deep); }
+
+.solver-box {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 32px;
+  box-shadow: var(--shadow-soft);
+  margin-top: 28px;
+  max-width: 720px;
+}
+
+.solver-label {
+  display: block;
+  font-weight: 700;
+  font-size: 0.88rem;
+  margin-bottom: 10px;
+}
+
+.solver-box textarea {
+  width: 100%;
+  border: 1.5px solid var(--tan);
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-family: var(--font-body);
+  font-size: 0.98rem;
+  resize: vertical;
+  margin-bottom: 16px;
+}
+
+.solver-box textarea:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(79, 111, 82, 0.15);
+}
+
+.solver-result {
+  margin-top: 22px;
+  padding-top: 22px;
+  border-top: 1px solid rgba(38, 38, 32, 0.1);
+}
+
+.solver-heading { font-weight: 700; margin-bottom: 14px; }
+
+.solver-match {
+  background: var(--cream);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  margin-bottom: 12px;
+}
+
+.solver-match h4 { font-size: 1rem; margin-bottom: 6px; color: var(--green); }
+.solver-match p { margin-bottom: 0; font-size: 0.92rem; }
+.solver-match p span { display: block; font-weight: 700; font-size: 0.72rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--gold); }
+
+.solver-empty { color: var(--ink-soft); font-size: 0.92rem; }
+
+.solver-disclaimer {
+  margin-top: 18px;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+  max-width: 620px;
+}

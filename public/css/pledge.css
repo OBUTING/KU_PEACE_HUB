@@ -1,0 +1,163 @@
+/* Youth Peace Pledge page */
+
+.youth-hero { background: linear-gradient(180deg, #eef2ea, var(--cream)); }
+.youth-hero .section-lede { max-width: 720px; }
+
+.daily-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 22px;
+  margin-top: 40px;
+}
+
+.daily-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 28px 24px;
+  border: 1px solid rgba(38, 38, 32, 0.06);
+  box-shadow: var(--shadow-soft);
+}
+
+.daily-card h3 { font-size: 1.08rem; margin: 14px 0 10px; }
+.daily-card p { font-size: 0.93rem; margin-bottom: 0; }
+
+.breaking-section { background: var(--green-dark); color: #eee; }
+.breaking-section .eyebrow { color: var(--gold); }
+.breaking-section h2 { color: #fff; }
+.breaking-section .section-lede { color: #d6d9d1; }
+
+.breaking-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin-top: 36px;
+}
+
+.breaking-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-sm);
+  padding: 20px;
+}
+
+.breaking-card h3 { color: #fff; font-size: 1rem; margin-bottom: 8px; }
+.breaking-card p { color: #cfd4c9; font-size: 0.88rem; margin-bottom: 0; }
+
+.pledge-section { background: var(--cream-deep); }
+
+.pledge-card {
+  background: #fff;
+  border-radius: var(--radius);
+  padding: 34px;
+  box-shadow: var(--shadow-soft);
+  margin-top: 34px;
+  max-width: 640px;
+}
+
+.pledge-field { margin-bottom: 18px; }
+.pledge-field label { display: block; font-weight: 700; font-size: 0.88rem; margin-bottom: 8px; }
+.pledge-field label span { font-weight: 400; color: var(--ink-soft); font-size: 0.8rem; }
+
+.pledge-field input, .pledge-field select {
+  width: 100%;
+  border: 1.5px solid var(--tan);
+  border-radius: var(--radius-sm);
+  padding: 11px 14px;
+  font-family: var(--font-body);
+  font-size: 0.96rem;
+}
+
+.pledge-field input:focus, .pledge-field select:focus {
+  outline: none;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px rgba(79, 111, 82, 0.15);
+}
+
+.pledge-commitments {
+  border: none;
+  padding: 0;
+  margin: 0 0 22px;
+}
+
+.pledge-commitments legend {
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 0;
+  margin-bottom: 12px;
+  float: none;
+  width: auto;
+}
+
+.pledge-check {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(38, 38, 32, 0.07);
+  font-size: 0.93rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.pledge-check:last-of-type { border-bottom: none; }
+
+.pledge-check input {
+  margin-top: 3px;
+  width: 17px;
+  height: 17px;
+  accent-color: var(--green);
+  flex-shrink: 0;
+}
+
+.btn-pledge { width: 100%; }
+
+.pledge-error {
+  color: var(--danger);
+  font-size: 0.85rem;
+  margin-top: 12px;
+  text-align: center;
+}
+
+.pledge-confirmation { text-align: center; }
+
+.pledge-confirmation h3 { font-size: 1.3rem; margin: 6px 0 18px; }
+
+.pledge-confirmation ul {
+  text-align: left;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 24px;
+}
+
+.pledge-confirmation ul li {
+  padding: 10px 14px;
+  background: var(--cream);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+  font-size: 0.9rem;
+}
+
+.pledge-confirmation ul li::before {
+  content: "✓ ";
+  color: var(--green);
+  font-weight: 700;
+}
+
+.btn-ghost-pledge {
+  background: transparent;
+  border: 1.5px solid var(--tan);
+  color: var(--ink);
+  padding: 11px 22px;
+  border-radius: 999px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-ghost-pledge:hover { border-color: var(--green); color: var(--green); }
+
+.pledge-counter {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}

@@ -1,0 +1,168 @@
+/* Login / signup page */
+
+body.auth-body {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: radial-gradient(circle at 30% 20%, #f4f2ea, var(--cream) 65%);
+  padding: 40px 20px;
+}
+
+.auth-shell {
+  width: 100%;
+  max-width: 440px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 26px;
+}
+
+.auth-shell .brandmark {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: 1.05rem;
+  color: var(--ink);
+  text-align: center;
+}
+
+.auth-shell .brandmark img { width: 30px; height: 30px; border-radius: 50%; }
+
+.auth-card {
+  width: 100%;
+  background: #fff;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-soft);
+  padding: 34px 32px;
+}
+
+.mode-toggle {
+  display: flex;
+  background: var(--cream);
+  border-radius: 999px;
+  padding: 4px;
+  margin-bottom: 26px;
+}
+
+.mode-btn {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.mode-btn.active { background: var(--green); color: #fff; }
+
+.panel h1 { font-size: 1.4rem; margin-bottom: 6px; text-align: center; }
+.panel .sub { text-align: center; font-size: 0.9rem; margin-bottom: 22px; }
+
+.btn-google {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #fff;
+  border: 1.5px solid var(--tan);
+  padding: 11px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+  font-size: 0.92rem;
+  cursor: pointer;
+  color: var(--ink);
+}
+
+.btn-google:hover { border-color: var(--green); }
+
+.divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  color: var(--ink-soft);
+  font-size: 0.8rem;
+}
+
+.divider::before, .divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: rgba(38, 38, 32, 0.12);
+}
+
+.method-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.method-btn {
+  flex: 1;
+  border: 1.5px solid var(--tan);
+  background: #fff;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.method-btn.active { border-color: var(--green); color: var(--green); background: rgba(79, 111, 82, 0.06); }
+
+.method-form { display: none; flex-direction: column; gap: 16px; }
+.method-form.active { display: flex; }
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-weight: 700; font-size: 0.85rem; }
+
+.field input {
+  border: 1.5px solid var(--tan);
+  border-radius: var(--radius-sm);
+  padding: 11px 13px;
+  font-family: var(--font-body);
+  font-size: 0.95rem;
+}
+
+.field input:focus { outline: none; border-color: var(--green); box-shadow: 0 0 0 3px rgba(79, 111, 82, 0.15); }
+.field input.is-invalid { border-color: var(--danger); }
+.field input.is-invalid ~ .field-error { display: block; }
+
+.field-hint { font-size: 0.78rem; color: var(--ink-soft); }
+.field-error { display: none; font-size: 0.78rem; color: var(--danger); }
+
+.field-row { display: flex; gap: 12px; }
+.field-row .field { flex: 1; }
+
+.row-between { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }
+.forgot-link { color: var(--green); font-weight: 600; }
+
+.checkbox-row { display: flex; align-items: flex-start; gap: 10px; font-size: 0.85rem; color: var(--ink-soft); }
+.checkbox-row input { margin-top: 3px; accent-color: var(--green); }
+
+.status-message {
+  text-align: center;
+  font-size: 0.85rem;
+  margin-top: 14px;
+  min-height: 1.1em;
+  color: var(--green-dark);
+}
+
+.status-message.is-error { color: var(--danger); }
+
+.switch-line { text-align: center; font-size: 0.88rem; margin-top: 18px; color: var(--ink-soft); }
+.switch-line button { background: none; border: none; color: var(--green); font-weight: 700; cursor: pointer; padding: 0; }
+
+.back-link { background: none; border: none; color: var(--ink-soft); font-size: 0.85rem; cursor: pointer; margin-bottom: 14px; padding: 0; }
+.back-link:hover { color: var(--green); }
+
+.auth-footnote { max-width: 440px; text-align: center; font-size: 0.78rem; color: var(--ink-soft); }
