@@ -168,6 +168,25 @@ section { padding: 88px 0; }
 
 .cg-navbar .nav-cta:hover { background: var(--green-dark); color: #fff !important; }
 
+.cg-navbar .nav-user {
+  font-weight: 600;
+  color: var(--ink) !important;
+  cursor: default;
+  padding: 8px 6px !important;
+}
+
+.cg-navbar .nav-logout-btn {
+  background: transparent;
+  color: var(--green) !important;
+  border: 1.5px solid var(--green);
+  cursor: pointer;
+}
+
+.cg-navbar .nav-logout-btn:hover {
+  background: var(--green);
+  color: #fff !important;
+}
+
 /* ---------- Page hero (used on interior pages) ---------- */
 
 .page-hero {

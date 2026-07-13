@@ -94,8 +94,11 @@
       try {
         const data = await postJSON("/api/auth/login", { email: email.value.trim(), password: password.value });
         rememberSession(data.token, data.user);
-        setStatus("login", `Welcome back, ${data.user.name || data.user.email}.`, false);
+        setStatus("login", `Welcome back, ${data.user.name || data.user.email}. Taking you home…`, false);
         if (window.cgToast) window.cgToast("Logged in.");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 700);
       } catch (err) {
         setStatus("login", err.message, true);
       }
@@ -138,8 +141,11 @@
           password: password.value,
         });
         rememberSession(data.token, data.user);
-        setStatus("signup", `Account created — welcome, ${data.user.name || data.user.email}.`, false);
+        setStatus("signup", `Account created — welcome, ${data.user.name || data.user.email}. Taking you home…`, false);
         if (window.cgToast) window.cgToast("Account created.");
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 700);
       } catch (err) {
         setStatus("signup", err.message, true);
       }
