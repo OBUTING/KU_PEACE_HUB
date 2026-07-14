@@ -83,6 +83,12 @@ body.auth-body {
 
 .btn-google:hover { border-color: var(--green); }
 
+.google-btn-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
 .divider {
   display: flex;
   align-items: center;

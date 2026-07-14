@@ -78,6 +78,31 @@
     }
   }
 
+  function currentScope() {
+    if (panels.signup && !panels.signup.hidden) return "signup";
+    if (panels.recovery && !panels.recovery.hidden) return "recovery";
+    return "login";
+  }
+
+  // Called by Google's Identity Services library once the user picks an
+  // account. Sends the signed credential to our backend, which verifies it
+  // with Google and creates/logs in the matching user.
+  window.handleGoogleCredentialResponse = async function (response) {
+    const scope = currentScope();
+    setStatus(scope, "Verifying your Google account…", false);
+    try {
+      const data = await postJSON("/api/auth/google", { credential: response.credential });
+      rememberSession(data.token, data.user);
+      setStatus(scope, `Welcome, ${data.user.name || data.user.email}. Taking you home…`, false);
+      if (window.cgToast) window.cgToast("Logged in with Google.");
+      setTimeout(() => {
+        window.location.href = "index.html";
+      }, 700);
+    } catch (err) {
+      setStatus(scope, err.message, true);
+    }
+  };
+
   // ---- Login (email) ----
   const loginEmailForm = document.querySelector('form[data-scope="login"][data-method-form="email"]');
   if (loginEmailForm) {

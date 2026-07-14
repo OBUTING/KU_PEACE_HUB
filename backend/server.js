@@ -20,12 +20,21 @@ const path = require("path");
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
+const { OAuth2Client } = require("google-auth-library");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
+
+// Google Sign-In — set GOOGLE_CLIENT_ID to the same Client ID used in
+// public/login.html (the data-client_id attribute on #g_id_onload).
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+if (!GOOGLE_CLIENT_ID) {
+  console.warn("Missing GOOGLE_CLIENT_ID environment variable — Google sign-in will fail until it's set.");
+}
+const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
 // ---------------------------------------------------------------------------
 // Database connection
@@ -75,10 +84,16 @@ async function initDb() {
       id UUID PRIMARY KEY,
       name TEXT,
       email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
+      password_hash TEXT,
+      google_id TEXT UNIQUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // Migrate a users table created before Google sign-in existed: password
+  // was required then, but Google-only accounts have no password.
+  await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;`);
 
   console.log("Database ready (tables created if they didn't already exist).");
 }
@@ -250,7 +265,7 @@ app.post("/api/auth/login", async (req, res) => {
     ]);
     const user = rows[0];
 
-    if (!user || !bcrypt.compareSync(password || "", user.password_hash)) {
+    if (!user || !user.password_hash || !bcrypt.compareSync(password || "", user.password_hash)) {
       return res.status(401).json({ ok: false, error: "Incorrect email or password." });
     }
 
@@ -259,6 +274,56 @@ app.post("/api/auth/login", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not log you in. Please try again." });
+  }
+});
+
+app.post("/api/auth/google", async (req, res) => {
+  const { credential } = req.body || {};
+
+  if (!credential) {
+    return res.status(400).json({ ok: false, error: "Missing Google credential." });
+  }
+  if (!GOOGLE_CLIENT_ID) {
+    return res.status(500).json({ ok: false, error: "Google sign-in isn't configured on this server yet." });
+  }
+
+  try {
+    const ticket = await googleClient.verifyIdToken({ idToken: credential, audience: GOOGLE_CLIENT_ID });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email || !payload.email_verified) {
+      return res.status(400).json({ ok: false, error: "Your Google account's email isn't verified." });
+    }
+
+    const googleId = payload.sub;
+    const email = payload.email;
+    const name = (payload.name || "").toString().slice(0, 80);
+
+    let { rows } = await pool.query(`SELECT * FROM users WHERE google_id = $1 OR lower(email) = lower($2)`, [
+      googleId,
+      email,
+    ]);
+    let user = rows[0];
+
+    if (!user) {
+      const id = crypto.randomUUID();
+      const inserted = await pool.query(
+        `INSERT INTO users (id, name, email, google_id) VALUES ($1, $2, $3, $4)
+         RETURNING id, name, email`,
+        [id, name, email, googleId]
+      );
+      user = inserted.rows[0];
+    } else if (!user.google_id) {
+      // An account with this email already existed (from email sign-up) —
+      // link it to this Google account instead of creating a duplicate.
+      await pool.query(`UPDATE users SET google_id = $1 WHERE id = $2`, [googleId, user.id]);
+    }
+
+    const token = Buffer.from(`${user.id}:${Date.now()}`).toString("base64");
+    res.json({ ok: true, token, user: { id: user.id, name: user.name || name, email: user.email } });
+  } catch (err) {
+    console.error(err);
+    res.status(401).json({ ok: false, error: "Could not verify your Google sign-in. Please try again." });
   }
 });
 
