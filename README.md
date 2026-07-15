@@ -10,17 +10,14 @@ separated CSS/JS, and Bootstrap 5 for layout and components.
 peace-hub/
 ├── backend/
 │   ├── server.js        # Express app — serves /public and all APIs
-│   ├── package.json
-│   └── data/             # flat JSON "database" (auto-created)
-│       ├── signatures.json
-│       ├── pledges.json
-│       └── users.json
+│   └── package.json
 └── public/
     ├── index.html         # Home — hero, three kinds of peace, ripple demo
     ├── about.html          # "What breaks peace" — disruptors + solver tool
     ├── pledge.html         # Youth Peace Pledge — daily practices + pledge form
     ├── map.html            # Messengers of Peace — signature map
     ├── login.html          # Log in / sign up / password reset
+    ├── game.html           # Peace Bridge — short choice-based game
     ├── css/
     │   ├── styles.css     # shared tokens, navbar, footer, buttons, forms
     │   ├── home.css
@@ -43,14 +40,35 @@ palette) on top.
 
 ## Run it
 
+This backend needs a Postgres database. The easiest option is Render's free
+Postgres — spin one up from the Render dashboard (**New +** → **PostgreSQL**),
+then copy its connection string.
+
+**1. Set the `DATABASE_URL` environment variable**, either:
+
+- Locally, in a `.env`-style export before starting the server:
+  ```bash
+  export DATABASE_URL="postgres://user:password@host:5432/dbname"
+  ```
+  (on Windows PowerShell: `$env:DATABASE_URL="postgres://..."`)
+- Or on Render itself, as an Environment Variable on your Web Service.
+
+**2. Install and start:**
 ```bash
 cd backend
 npm install
 npm start
 ```
 
+On first run, the server automatically creates the `signatures`, `pledges`,
+and `users` tables if they don't already exist — no separate migration step.
+
 Then open **http://localhost:3000** — the backend serves the whole `public/`
 folder itself, so there's nothing else to start.
+
+> If you're connecting to a local Postgres install that doesn't use SSL, also
+> set `PGSSLMODE=disable`. Hosted providers like Render's Postgres require
+> SSL, which is on by default.
 
 ## APIs
 
@@ -63,10 +81,13 @@ folder itself, so there's nothing else to start.
 | `/api/pledges/count` | GET | pledge.html — running total |
 | `/api/auth/signup` | POST | login.html — create an account |
 | `/api/auth/login` | POST | login.html — log in |
+| `/api/auth/google` | POST | login.html — Google sign-in |
+| `/api/game-pledge` | POST | game.html — share a peace promise on the Peace Wall |
+| `/api/game-pledges` | GET | game.html — load the Peace Wall |
 
-Data is stored in flat JSON files under `backend/data/` — enough to run and
-demo the whole site with zero external dependencies. Swap in a real database
-(and a real session/JWT strategy for auth) before taking this to production.
+Data is stored in a Postgres database, so it survives restarts and redeploys.
+Swap in a real session/JWT strategy for auth before taking this to full
+production use.
 
 ## Notes / things to swap before going live
 

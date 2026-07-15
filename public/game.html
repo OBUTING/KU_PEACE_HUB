@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Peace Bridge — A Game About Building Peace | Common Ground</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Work+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/game.css">
+</head>
+<body>
+
+<div class="divide-bg" aria-hidden="true">
+  <div class="divide-left"></div>
+  <div class="divide-right"></div>
+</div>
+
+<div class="game-topbar">
+  <a href="index.html">← Back to Common Ground</a>
+</div>
+
+<header class="site-head">
+  <div class="brand">
+    <span class="brand-mark">◠◡◠</span>
+    <div>
+      <h1>Peace Bridge</h1>
+      <p class="tagline">Build the crossing, one choice at a time.</p>
+    </div>
+  </div>
+  <div class="hud" id="hud">
+    <div class="hud-stat">
+      <span class="hud-label">Empathy</span>
+      <span class="hud-value" id="empathyScore">0</span>
+    </div>
+    <div class="hud-stat">
+      <span class="hud-label">Conflict</span>
+      <span class="hud-value" id="conflictLevel">0</span>
+    </div>
+    <div class="hud-stat">
+      <span class="hud-label">Level</span>
+      <span class="hud-value" id="levelIndicator">—</span>
+    </div>
+  </div>
+</header>
+
+<main id="app">
+
+  <!-- SCREEN: Title / Intro -->
+  <section class="screen" id="screen-intro" data-active="true">
+    <div class="panel intro-panel">
+      <p class="eyebrow">A short game for peacebuilders</p>
+      <h2>The land is split down the middle.</h2>
+      <p class="lede">On one side, the highlands. On the other, the plains, the lake, the coast. Between them: a
+      gorge where a bridge used to stand. It fell the last time people stopped listening to each other.
+      You'll cross three places where trust has cracked — a classroom, a water line, a forest — and decide,
+      choice by choice, whether the bridge gets rebuilt.</p>
+      <button class="btn btn-primary" id="btnStart">Choose your character</button>
+    </div>
+  </section>
+
+  <!-- SCREEN: Character select -->
+  <section class="screen" id="screen-select">
+    <div class="panel">
+      <p class="eyebrow">Step 1 of 2</p>
+      <h2>Who are you playing as?</h2>
+      <div class="char-grid" id="charGrid"></div>
+      <button class="btn btn-primary" id="btnConfirmChar" disabled>Begin at the Divided Classroom</button>
+    </div>
+  </section>
+
+  <!-- SCREEN: Level -->
+  <section class="screen" id="screen-level">
+    <div class="level-shell">
+      <div class="level-header">
+        <p class="eyebrow" id="levelEyebrow">Level 1</p>
+        <h2 id="levelTitle">The Divided Classroom</h2>
+        <p class="level-desc" id="levelDesc"></p>
+      </div>
+
+      <div class="bridge-track" id="bridgeTrack" aria-label="Bridge progress"></div>
+
+      <div class="stage" id="stage">
+        <div class="stage-figure" id="stageFigure">🧑</div>
+        <div class="npc-card" id="npcCard">
+          <p class="npc-name" id="npcName"></p>
+          <p class="npc-prompt" id="npcPrompt"></p>
+          <div class="choices" id="choices"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN: Reflection popup (overlay) -->
+  <div class="overlay" id="overlayReflection">
+    <div class="overlay-card">
+      <p class="eyebrow">Reflection</p>
+      <p class="reflect-q" id="reflectQuestion"></p>
+      <p class="reflect-a" id="reflectAnswer"></p>
+      <button class="btn btn-primary" id="btnReflectContinue">Continue</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: Conflict popup (overlay) -->
+  <div class="overlay" id="overlayConflict">
+    <div class="overlay-card overlay-card--conflict">
+      <p class="eyebrow eyebrow--conflict">A crack forms</p>
+      <p class="reflect-q" id="conflictText"></p>
+      <button class="btn btn-secondary" id="btnConflictRetry">Try a different approach</button>
+    </div>
+  </div>
+
+  <!-- SCREEN: End -->
+  <section class="screen" id="screen-end">
+    <div class="panel end-panel">
+      <p class="eyebrow">The bridge stands</p>
+      <h2 id="endHeadline">You crossed the gorge.</h2>
+      <p class="lede" id="endSummary"></p>
+
+      <div class="facts" id="facts"></div>
+
+      <form class="pledge-form" id="pledgeForm">
+        <label for="pledgeName">Your name</label>
+        <input type="text" id="pledgeName" maxlength="40" placeholder="How should we sign your promise?" required>
+        <label for="pledgeText">Your peace promise for 2027</label>
+        <textarea id="pledgeText" maxlength="220" rows="3" placeholder="One thing you'll do to keep the peace..." required></textarea>
+        <button type="submit" class="btn btn-primary">Share your peace promise</button>
+        <p class="form-note" id="pledgeNote"></p>
+      </form>
+
+      <div class="wall" id="peaceWall">
+        <p class="eyebrow">Peace Wall</p>
+        <ul class="wall-list" id="wallList"></ul>
+      </div>
+
+      <button class="btn btn-ghost" id="btnReplay">Play again</button>
+    </div>
+  </section>
+
+</main>
+
+<footer class="site-foot">
+  <p>Made for the KU Peace Innovation Hub — peace awareness ahead of Kenya's 2027 general elections.
+  <br><a href="pledge.html">Take the full Youth Peace Pledge →</a></p>
+</footer>
+
+<script src="js/game.js"></script>
+</body>
+</html>

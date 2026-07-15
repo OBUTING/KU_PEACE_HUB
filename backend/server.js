@@ -80,6 +80,17 @@ async function initDb() {
   `);
 
   await pool.query(`
+    CREATE TABLE IF NOT EXISTS game_pledges (
+      id UUID PRIMARY KEY,
+      name TEXT NOT NULL,
+      promise_text TEXT NOT NULL,
+      character TEXT,
+      empathy INT DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS users (
       id UUID PRIMARY KEY,
       name TEXT,
@@ -212,6 +223,61 @@ app.get("/api/pledges/count", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not load pledge count." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Game pledges — the "Peace Wall" on the Peace Bridge game's end screen
+// (public/game.html, public/js/game.js). Kept separate from the youth
+// pledge API above since they're different content and different forms.
+// ---------------------------------------------------------------------------
+
+// Strip tags/control characters and cap length — same light sanitization
+// the game's original standalone backend used.
+function cleanGameText(str, maxLen) {
+  if (typeof str !== "string") return "";
+  return str
+    .replace(/<[^>]*>/g, "")
+    .replace(/[\u0000-\u001F\u007F]/g, "")
+    .trim()
+    .slice(0, maxLen);
+}
+
+app.post("/api/game-pledge", async (req, res) => {
+  const name = cleanGameText(req.body && req.body.name, 40);
+  const text = cleanGameText(req.body && req.body.text, 220);
+  const character = cleanGameText(req.body && req.body.character, 30);
+  const empathyRaw = req.body ? req.body.empathy : 0;
+  const empathy = Number.isFinite(empathyRaw) ? Math.max(0, Math.min(99, empathyRaw)) : 0;
+
+  if (!name || !text) {
+    return res.status(400).json({ error: "Name and promise text are required" });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO game_pledges (id, name, promise_text, character, empathy)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, name, promise_text AS "text", character, empathy, created_at AS "createdAt"`,
+      [crypto.randomUUID(), name, text, character, empathy]
+    );
+    res.status(201).json(rows[0]);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+app.get("/api/game-pledges", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, name, promise_text AS "text", character, empathy, created_at AS "createdAt"
+       FROM game_pledges ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
   }
 });
 

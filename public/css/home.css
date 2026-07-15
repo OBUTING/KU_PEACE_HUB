@@ -137,6 +137,28 @@
 .way-card h3 { font-size: 1.1rem; margin: 14px 0 10px; }
 .way-card p { font-size: 0.94rem; margin-bottom: 0; }
 
+/* Peace Bridge game promo */
+
+.game-promo-section { padding-top: 0; }
+
+.game-promo-card {
+  background: linear-gradient(120deg, #1B2A4A, #2C3E63 55%, #C9683F);
+  border-radius: var(--radius);
+  padding: clamp(28px, 5vw, 44px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 26px;
+  box-shadow: var(--shadow-soft);
+}
+
+.game-promo-card .eyebrow { color: #E8B84B; }
+.game-promo-card h2 { color: #fff; max-width: 480px; margin-bottom: 10px; }
+.game-promo-card .section-lede { color: #EAE6DC; max-width: 480px; margin-bottom: 0; }
+.game-promo-card .btn-cg-primary { background: #E8B84B; color: #1B2A4A !important; flex-shrink: 0; }
+.game-promo-card .btn-cg-primary:hover { background: #d9a53a; }
+
 /* Ripple demo */
 
 .ripple-section { background: var(--green-dark); color: #f1efe6; }
