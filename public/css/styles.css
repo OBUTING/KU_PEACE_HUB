@@ -53,7 +53,7 @@ a:hover { color: var(--green-dark); }
   padding: 0 24px;
 }
 
-section { padding: 88px 0; }
+section { padding: 56px 0; }
 
 .eyebrow {
   display: inline-block;
@@ -305,6 +305,6 @@ footer.cg-footer .copyright { border-top: 1px solid rgba(255,255,255,0.12); marg
 .cg-toast.is-error { background: var(--danger); }
 
 @media (max-width: 767px) {
-  section { padding: 60px 0; }
-  .page-hero { padding: 110px 0 50px; }
+  section { padding: 40px 0; }
+  .page-hero { padding: 56px 0 40px; }
 }
