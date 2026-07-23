@@ -1,7 +1,7 @@
 {
-  "name": "peace-hub-whatsapp-bot",
+  "name": "peace-hub-whatsapp-faq-bot",
   "version": "1.0.0",
-  "description": "Sends scheduled peace reminder broadcasts to a WhatsApp group using Baileys (a lightweight, browser-free unofficial WhatsApp library) and your own WhatsApp number.",
+  "description": "Auto-replies to 1-on-1 WhatsApp messages with peace-related FAQ answers, using Baileys and your own WhatsApp number.",
   "main": "index.js",
   "scripts": {
     "start": "node index.js"
@@ -13,7 +13,6 @@
   "dependencies": {
     "@whiskeysockets/baileys": "^6.7.9",
     "qrcode-terminal": "^0.12.0",
-    "node-cron": "^3.0.3",
     "pino": "^9.5.0"
   }
 }

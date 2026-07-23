@@ -46,43 +46,104 @@
 </header>
 
 <div class="wrap">
-  <div class="map-shell">
-    <div class="map-main">
-      <!-- Interactive Map -->
-      <div class="map-section">
-        <div class="map-container" id="mapContainer">
-          <img src="images/map.png" alt="Map of Kenya — Messengers of Peace commitment" id="kenyaMap">
-        </div>
-        <div class="map-caption">Click anywhere on the map to sign your commitment</div>
-      </div>
 
-      <!-- Sidebar -->
-      <div class="map-sidebar">
-        <div class="sign-box">
-          <h2>Add Your Name to the Peace Map</h2>
-          <form id="signForm">
-            <input type="text" id="nameInput" placeholder="Your Full Name" required>
-            <input type="text" id="countyInput" placeholder="County (optional)">
-            <button type="submit" id="signBtn">SIGN THE COMMITMENT</button>
-            <p class="map-form-error" id="formError"></p>
-          </form>
+  <ul class="nav nav-tabs map-game-tabs" id="mapGameTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="tab-map-btn" data-bs-toggle="tab" data-bs-target="#tab-map" type="button" role="tab" aria-controls="tab-map" aria-selected="true">🗺️ Sign the Peace Map</button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="tab-game-btn" data-bs-toggle="tab" data-bs-target="#tab-game" type="button" role="tab" aria-controls="tab-game" aria-selected="false">🌉 Play Peace Bridge</button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="mapGameTabsContent">
+
+    <!-- TAB: Peace Map -->
+    <div class="tab-pane fade show active" id="tab-map" role="tabpanel" aria-labelledby="tab-map-btn">
+      <div class="map-shell">
+        <div class="map-main">
+          <!-- Interactive Map -->
+          <div class="map-section">
+            <div class="map-container" id="mapContainer">
+              <img src="images/map.png" alt="Map of Kenya — Messengers of Peace commitment" id="kenyaMap">
+            </div>
+            <div class="map-caption">Click anywhere on the map to sign your commitment</div>
+          </div>
+
+          <!-- Sidebar -->
+          <div class="map-sidebar">
+            <div class="sign-box">
+              <h2>Add Your Name to the Peace Map</h2>
+              <form id="signForm">
+                <input type="text" id="nameInput" placeholder="Your Full Name" required>
+                <input type="text" id="countyInput" placeholder="County (optional)">
+                <input type="number" id="ageInput" placeholder="Age (optional)" min="5" max="120">
+                <select id="scoutInput">
+                  <option value="">Are you a Scout? (optional)</option>
+                  <option value="yes">Yes, I'm a Scout</option>
+                  <option value="no">No</option>
+                </select>
+                <button type="submit" id="signBtn">SIGN THE COMMITMENT</button>
+                <p class="map-form-error" id="formError"></p>
+              </form>
+            </div>
+
+            <div class="map-stats">
+              <h2 id="signatureCount">0</h2>
+              <p><strong>Kenyans Committed to Peace</strong></p>
+            </div>
+
+            <div>
+              <h3 class="recent-heading">Recent Messengers of Peace</h3>
+              <div class="signatures-list" id="signaturesList"></div>
+            </div>
+          </div>
         </div>
 
-        <div class="map-stats">
-          <h2 id="signatureCount">0</h2>
-          <p><strong>Kenyans Committed to Peace</strong></p>
+        <!-- Statistics -->
+        <div class="map-stats-panel">
+          <h3 class="recent-heading">Who's signing</h3>
+          <div class="stats-grid" id="statsGrid">
+            <div class="stat-card">
+              <div class="stat-label">Average age</div>
+              <div class="stat-value" id="statAvgAge">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Most common age group</div>
+              <div class="stat-value" id="statAgeGroup">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Top county</div>
+              <div class="stat-value" id="statTopCounty">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Counties represented</div>
+              <div class="stat-value" id="statCountyCount">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Scouts</div>
+              <div class="stat-value" id="statScoutPercent">—</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Non-Scouts</div>
+              <div class="stat-value" id="statNonScoutPercent">—</div>
+            </div>
+          </div>
         </div>
 
-        <div>
-          <h3 class="recent-heading">Recent Messengers of Peace</h3>
-          <div class="signatures-list" id="signaturesList"></div>
+        <div class="map-footnote">
+          <p>Signatures are recorded on this project's own backend and shared by everyone visiting the page.</p>
         </div>
       </div>
     </div>
 
-    <div class="map-footnote">
-      <p>Signatures are recorded on this project's own backend and shared by everyone visiting the page.</p>
+    <!-- TAB: Peace Bridge game -->
+    <div class="tab-pane fade" id="tab-game" role="tabpanel" aria-labelledby="tab-game-btn">
+      <div class="game-embed-shell">
+        <iframe src="game.html" title="Peace Bridge game" class="game-embed-frame" loading="lazy"></iframe>
+      </div>
     </div>
+
   </div>
 </div>
 

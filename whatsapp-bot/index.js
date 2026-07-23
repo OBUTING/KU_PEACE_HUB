@@ -1,109 +1,110 @@
-require("dotenv").config();
 /**
- * Peace Hub WhatsApp Bot
+ * Peace Hub WhatsApp Bot (Baileys edition)
  * ------------------------------------------------------------------
  * Connects to WhatsApp using your own number (via a QR code scan, same
  * as linking a new device in WhatsApp Web/Desktop), then sends a peace
  * reminder to one WhatsApp group on a schedule.
  *
- * Uses whatsapp-web.js — an UNOFFICIAL library that automates the
- * WhatsApp Web interface. This is against WhatsApp's Terms of Service
- * and carries a real risk of the connected number being banned or
- * rate-limited. Use a secondary/test number where possible, and keep
- * broadcast volume low (this script is built for one scheduled message
- * to one group, not mass messaging).
+ * Uses Baileys — an UNOFFICIAL library that talks to WhatsApp's own
+ * multi-device protocol directly over a WebSocket. Unlike whatsapp-web.js,
+ * it does NOT launch a real browser (no Puppeteer/Chromium), which avoids
+ * an entire class of browser-compatibility bugs. It is still against
+ * WhatsApp's Terms of Service, and the connected number carries a real
+ * risk of being rate-limited or banned. Use a secondary/test number where
+ * possible, and keep broadcast volume low (this script is built for one
+ * scheduled message to one group, not mass messaging).
  *
  * Setup:
  *   1. npm install
- *   2. Set GROUP_ID (or GROUP_NAME) and BROADCAST_CRON in a .env file
- *      or as real environment variables (see README.md).
+ *   2. Set WHATSAPP_GROUP_ID and BROADCAST_CRON as environment variables
+ *      (see README.md).
  *   3. npm start
  *   4. Scan the QR code that prints in your terminal with WhatsApp:
  *      Settings → Linked Devices → Link a Device.
  *   5. On first successful connect, the console prints every group
  *      this number is part of, along with its ID — copy the one you
- *      want into GROUP_ID.
+ *      want into WHATSAPP_GROUP_ID.
  *
  * The session is saved to ./session so you don't have to re-scan the
  * QR code every time you restart the bot — keep that folder out of git
  * (already handled in .gitignore) and keep it on a persistent disk.
  */
 
-const { Client, LocalAuth } = require("whatsapp-web.js");
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+} = require("@whiskeysockets/baileys");
 const qrcode = require("qrcode-terminal");
 const cron = require("node-cron");
+const pino = require("pino");
 const { messages } = require("./messages");
 
 const GROUP_ID = process.env.WHATSAPP_GROUP_ID || "";
-const GROUP_NAME = process.env.WHATSAPP_GROUP_NAME || "";
 const BROADCAST_CRON = process.env.BROADCAST_CRON || "0 8 * * *"; // default: 8:00 AM daily
 
-if (!GROUP_ID && !GROUP_NAME) {
+if (!GROUP_ID) {
   console.warn(
-    "No WHATSAPP_GROUP_ID or WHATSAPP_GROUP_NAME set yet. The bot will still connect and " +
-      "log all your groups + their IDs once ready — copy the right one into your environment " +
-      "variables, then restart."
+    "No WHATSAPP_GROUP_ID set yet. The bot will still connect and log all your groups + their " +
+      "IDs once ready — copy the right one into your environment variables, then restart."
   );
 }
 
-const client = new Client({
-  authStrategy: new LocalAuth({ dataPath: "./session" }),
-  puppeteer: {
-  headless: true,
-  args: ["--no-sandbox", "--disable-setuid-sandbox"],
-},
-  // No webVersionCache pin: with an up-to-date whatsapp-web.js, letting it
-  // fetch WhatsApp's current live version (the default) works better than
-  // pinning to an old snapshot, which is what caused the getChats() crash.
-});
+let sock = null;
 
-client.on("qr", (qr) => {
-  console.log("\nScan this QR code in WhatsApp → Settings → Linked Devices → Link a Device:\n");
-  qrcode.generate(qr, { small: true });
-});
+async function startBot() {
+  const { state, saveCreds } = await useMultiFileAuthState("./session");
 
-client.on("authenticated", () => {
-  console.log("Authenticated. Session saved to ./session for future restarts.");
-});
+  // Baileys needs to speak the WhatsApp Web protocol version WhatsApp's
+  // servers currently expect. Without fetching this explicitly, some
+  // setups fall back to a stale built-in version and get rejected
+  // immediately with "Connection Failure" before ever showing a QR code.
+  const { version, isLatest } = await fetchLatestBaileysVersion();
+  console.log(`Using WhatsApp Web protocol v${version.join(".")} (latest: ${isLatest})`);
 
-client.on("auth_failure", (msg) => {
-  console.error("Authentication failed:", msg);
-});
+  sock = makeWASocket({
+    version,
+    auth: state,
+    logger: pino({ level: "silent" }),
+  });
 
-client.on("disconnected", (reason) => {
-  console.warn("Disconnected from WhatsApp:", reason);
-});
- client.on("disconnected", (reason) => {
-  console.warn("Disconnected from WhatsApp:", reason);
-});
+  sock.ev.on("creds.update", saveCreds);
 
-client.on("ready", async () => {
-  console.log("WhatsApp bot connected and ready.");
-  try {
-    await listGroups();
-  } catch (err) {
-    console.error(
-      "Could not list groups (getChats is currently unreliable in whatsapp-web.js):",
-      err.message
-    );
-  }
-  console.log(`Broadcast schedule (cron): "${BROADCAST_CRON}"`);
-});
+  sock.ev.on("connection.update", async (update) => {
+    const { connection, lastDisconnect, qr } = update;
 
-async function listGroups() {
-  const chats = await client.getChats();
-  const groups = chats.filter((c) => c.isGroup);
-  console.log(`\nThis number is part of ${groups.length} group(s):`);
-  groups.forEach((g) => console.log(`  "${g.name}"  ->  ${g.id._serialized}`));
-  console.log(""); // blank line for readability
+    if (qr) {
+      console.log("\nScan this QR code in WhatsApp → Settings → Linked Devices → Link a Device:\n");
+      qrcode.generate(qr, { small: true });
+    }
+
+    if (connection === "open") {
+      console.log("WhatsApp bot connected and ready.");
+      await listGroups();
+      console.log(`Broadcast schedule (cron): "${BROADCAST_CRON}"`);
+    }
+
+    if (connection === "close") {
+      const statusCode = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = statusCode === DisconnectReason.loggedOut;
+      console.warn("Connection closed.", lastDisconnect?.error?.message || "");
+      if (loggedOut) {
+        console.error("Logged out from WhatsApp — delete the ./session folder and restart to re-link.");
+      } else {
+        console.log("Reconnecting in 3 seconds...");
+        setTimeout(() => startBot(), 3000);
+      }
+    }
+  });
 }
 
-async function resolveTargetGroupId() {
-  if (GROUP_ID) return GROUP_ID;
-  if (!GROUP_NAME) return null;
-  const chats = await client.getChats();
-  const match = chats.find((c) => c.isGroup && c.name === GROUP_NAME);
-  return match ? match.id._serialized : null;
+async function listGroups() {
+  const groups = await sock.groupFetchAllParticipating();
+  const entries = Object.values(groups);
+  console.log(`\nThis number is part of ${entries.length} group(s):`);
+  entries.forEach((g) => console.log(`  "${g.subject}"  ->  ${g.id}`));
+  console.log(""); // blank line for readability
 }
 
 function pickRandomMessage() {
@@ -116,17 +117,20 @@ function pickRandomMessage() {
  * up to an HTTP endpoint later if you want an on-demand "send now" button).
  */
 async function sendBroadcast(customText) {
-  const targetId = await resolveTargetGroupId();
-  if (!targetId) {
+  if (!sock) {
+    console.error("Bot isn't connected yet — try again once startup finishes.");
+    return;
+  }
+  if (!GROUP_ID) {
     console.error(
-      "Could not resolve a target group. Set WHATSAPP_GROUP_ID (preferred) or " +
-        "WHATSAPP_GROUP_NAME to match one of the groups logged above, then restart."
+      "Could not resolve a target group. Set WHATSAPP_GROUP_ID to match one of the groups " +
+        "logged above, then restart."
     );
     return;
   }
   const text = customText || pickRandomMessage();
-  await client.sendMessage(targetId, text);
-  console.log(`[${new Date().toISOString()}] Sent to ${targetId}: ${text}`);
+  await sock.sendMessage(GROUP_ID, { text });
+  console.log(`[${new Date().toISOString()}] Sent to ${GROUP_ID}: ${text}`);
 }
 
 // Schedule the recurring broadcast. Cron format: minute hour day month weekday
@@ -138,6 +142,6 @@ cron.schedule(BROADCAST_CRON, () => {
   sendBroadcast().catch((err) => console.error("Scheduled broadcast failed:", err));
 });
 
-client.initialize();
+startBot().catch((err) => console.error("Failed to start bot:", err));
 
 module.exports = { sendBroadcast };

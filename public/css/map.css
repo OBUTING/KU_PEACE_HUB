@@ -108,14 +108,16 @@ body.map-body {
 
 .sign-box form { display: flex; flex-direction: column; gap: 12px; }
 
-.sign-box input {
+.sign-box input, .sign-box select {
   padding: 13px;
   border-radius: var(--radius-sm);
   border: 2px solid var(--tan);
   font-family: var(--font-body);
+  background: #fff;
+  color: var(--ink);
 }
 
-.sign-box input:focus { outline: none; border-color: var(--green-deep); }
+.sign-box input:focus, .sign-box select:focus { outline: none; border-color: var(--green-deep); }
 
 .sign-box button {
   padding: 14px;
@@ -172,4 +174,81 @@ body.map-body {
 
 @media (max-width: 767px) {
   .map-container { height: 380px; }
+}
+
+/* Map / Game tabs */
+.map-game-tabs {
+  border-bottom: none;
+  gap: 8px;
+  margin: 20px 0 0;
+}
+.map-game-tabs .nav-link {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  border-radius: 12px 12px 0 0;
+  padding: 12px 22px;
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+.map-game-tabs .nav-link:hover { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.map-game-tabs .nav-link.active {
+  background: #fff;
+  color: var(--green-deep);
+}
+#mapGameTabsContent { margin-bottom: 60px; }
+#mapGameTabsContent .tab-pane { padding-top: 0; }
+
+/* Statistics panel */
+.map-stats-panel {
+  background: var(--cream);
+  border-radius: 14px;
+  padding: 24px;
+  margin: 0 24px 24px;
+}
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+.stat-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+.stat-label {
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #777;
+  margin-bottom: 6px;
+}
+.stat-value {
+  font-family: var(--font-display);
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: var(--green-deep);
+}
+
+/* Game embed */
+.game-embed-shell {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+}
+.game-embed-frame {
+  width: 100%;
+  height: 82vh;
+  min-height: 640px;
+  border: none;
+  display: block;
+}
+
+@media (max-width: 767px) {
+  .map-stats-panel { margin: 0 0 20px; }
+  .game-embed-frame { height: 78vh; min-height: 520px; }
 }

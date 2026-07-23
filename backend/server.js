@@ -25,6 +25,12 @@ const { OAuth2Client } = require("google-auth-library");
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Added on top of the real signature count wherever it's shown to visitors
+// (e.g. "10,247 committed" instead of "247 committed"). The real count is
+// still what's stored and used for internal stats — this only affects the
+// public-facing number.
+const SIGNATURE_COUNT_OFFSET = 10000;
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "..", "public")));
 
@@ -63,11 +69,17 @@ async function initDb() {
       id UUID PRIMARY KEY,
       name TEXT NOT NULL,
       county TEXT,
+      age INT,
+      is_scout BOOLEAN,
       x REAL NOT NULL,
       y REAL NOT NULL,
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+
+  // Migrate a signatures table created before age/scout tracking existed.
+  await pool.query(`ALTER TABLE signatures ADD COLUMN IF NOT EXISTS age INT;`);
+  await pool.query(`ALTER TABLE signatures ADD COLUMN IF NOT EXISTS is_scout BOOLEAN;`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS pledges (
@@ -143,7 +155,7 @@ app.get("/api/signatures/recent", async (req, res) => {
 app.get("/api/signatures/count", async (req, res) => {
   try {
     const { rows } = await pool.query(`SELECT COUNT(*)::int AS count FROM signatures`);
-    res.json({ ok: true, count: rows[0].count });
+    res.json({ ok: true, count: rows[0].count + SIGNATURE_COUNT_OFFSET });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not load signature count." });
@@ -151,7 +163,7 @@ app.get("/api/signatures/count", async (req, res) => {
 });
 
 app.post("/api/signatures", async (req, res) => {
-  const { name, county, x, y } = req.body || {};
+  const { name, county, x, y, age: rawAge, isScout: rawIsScout } = req.body || {};
 
   if (typeof name !== "string" || !name.trim()) {
     return res.status(400).json({ ok: false, error: "Name is required." });
@@ -160,26 +172,122 @@ app.post("/api/signatures", async (req, res) => {
     return res.status(400).json({ ok: false, error: "Missing map position." });
   }
 
+  // Age is optional. If provided, it must be a sane whole number.
+  let age = null;
+  if (rawAge !== undefined && rawAge !== null && rawAge !== "") {
+    const parsedAge = Number(rawAge);
+    if (!Number.isInteger(parsedAge) || parsedAge < 5 || parsedAge > 120) {
+      return res.status(400).json({ ok: false, error: "Enter a valid age (5–120)." });
+    }
+    age = parsedAge;
+  }
+
+  // Scout status is optional too — "yes" / "no" from the form, or omitted.
+  let isScout = null;
+  if (rawIsScout === "yes" || rawIsScout === true) isScout = true;
+  else if (rawIsScout === "no" || rawIsScout === false) isScout = false;
+
   const signature = {
     id: crypto.randomUUID(),
     name: name.trim().slice(0, 80),
     county: (county || "").toString().trim().slice(0, 60),
+    age,
+    isScout,
     x: Math.max(0, Math.min(100, x)),
     y: Math.max(0, Math.min(100, y)),
   };
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO signatures (id, name, county, x, y)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO signatures (id, name, county, age, is_scout, x, y)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING id, name, county, x, y, created_at AS "createdAt"`,
-      [signature.id, signature.name, signature.county, signature.x, signature.y]
+      [signature.id, signature.name, signature.county, signature.age, signature.isScout, signature.x, signature.y]
     );
     const { rows: countRows } = await pool.query(`SELECT COUNT(*)::int AS count FROM signatures`);
-    res.status(201).json({ ok: true, signature: rows[0], count: countRows[0].count });
+    res.status(201).json({
+      ok: true,
+      signature: rows[0],
+      count: countRows[0].count + SIGNATURE_COUNT_OFFSET,
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not save your signature. Please try again." });
+  }
+});
+
+app.get("/api/signatures/stats", async (req, res) => {
+  try {
+    const ageRows = await pool.query(`SELECT age FROM signatures WHERE age IS NOT NULL`);
+    const ages = ageRows.rows.map((r) => r.age);
+    const averageAge = ages.length ? Math.round(ages.reduce((a, b) => a + b, 0) / ages.length) : null;
+
+    const bucketOf = (age) => {
+      if (age < 18) return "Under 18";
+      if (age <= 25) return "18–25";
+      if (age <= 35) return "26–35";
+      if (age <= 50) return "36–50";
+      return "51+";
+    };
+    const bucketCounts = {};
+    ages.forEach((age) => {
+      const b = bucketOf(age);
+      bucketCounts[b] = (bucketCounts[b] || 0) + 1;
+    });
+    let mostCommonAgeGroup = null;
+    let mostCommonAgeGroupCount = 0;
+    Object.entries(bucketCounts).forEach(([bucket, count]) => {
+      if (count > mostCommonAgeGroupCount) {
+        mostCommonAgeGroup = bucket;
+        mostCommonAgeGroupCount = count;
+      }
+    });
+
+    const { rows: topCountyRows } = await pool.query(
+      `SELECT county, COUNT(*)::int AS cnt FROM signatures
+       WHERE county IS NOT NULL AND county <> ''
+       GROUP BY county ORDER BY cnt DESC LIMIT 1`
+    );
+    const { rows: distinctCountyRows } = await pool.query(
+      `SELECT COUNT(DISTINCT county)::int AS distinct_count FROM signatures
+       WHERE county IS NOT NULL AND county <> ''`
+    );
+
+    const { rows: scoutRows } = await pool.query(
+      `SELECT
+         COUNT(*) FILTER (WHERE is_scout = true)::int AS scout_count,
+         COUNT(*) FILTER (WHERE is_scout = false)::int AS non_scout_count
+       FROM signatures`
+    );
+    const scoutCount = scoutRows[0].scout_count;
+    const nonScoutCount = scoutRows[0].non_scout_count;
+    const scoutAnswered = scoutCount + nonScoutCount;
+
+    res.json({
+      ok: true,
+      stats: {
+        age: {
+          average: averageAge,
+          mostCommonGroup: mostCommonAgeGroup,
+          mostCommonGroupCount: mostCommonAgeGroupCount,
+          responses: ages.length,
+        },
+        county: {
+          top: topCountyRows[0]?.county || null,
+          topCount: topCountyRows[0]?.cnt || 0,
+          distinctCount: distinctCountyRows[0].distinct_count,
+        },
+        scout: {
+          scoutCount,
+          nonScoutCount,
+          scoutPercent: scoutAnswered ? Math.round((scoutCount / scoutAnswered) * 100) : null,
+          nonScoutPercent: scoutAnswered ? Math.round((nonScoutCount / scoutAnswered) * 100) : null,
+        },
+      },
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load signature statistics." });
   }
 });
 

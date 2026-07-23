@@ -8,10 +8,20 @@
   const signForm = document.getElementById("signForm");
   const nameInput = document.getElementById("nameInput");
   const countyInput = document.getElementById("countyInput");
+  const ageInput = document.getElementById("ageInput");
+  const scoutInput = document.getElementById("scoutInput");
   const signBtn = document.getElementById("signBtn");
   const formError = document.getElementById("formError");
   const signatureCountEl = document.getElementById("signatureCount");
   const signaturesList = document.getElementById("signaturesList");
+
+  // Statistics panel elements
+  const statAvgAge = document.getElementById("statAvgAge");
+  const statAgeGroup = document.getElementById("statAgeGroup");
+  const statTopCounty = document.getElementById("statTopCounty");
+  const statCountyCount = document.getElementById("statCountyCount");
+  const statScoutPercent = document.getElementById("statScoutPercent");
+  const statNonScoutPercent = document.getElementById("statNonScoutPercent");
 
   if (!mapContainer) return;
 
@@ -63,6 +73,30 @@
     });
   }
 
+  function renderStats(stats) {
+    if (!stats || !statAvgAge) return;
+
+    statAvgAge.textContent = stats.age.average !== null ? stats.age.average : "—";
+    statAgeGroup.textContent = stats.age.mostCommonGroup || "—";
+
+    statTopCounty.textContent = stats.county.top || "—";
+    statCountyCount.textContent = stats.county.distinctCount || "0";
+
+    statScoutPercent.textContent = stats.scout.scoutPercent !== null ? `${stats.scout.scoutPercent}%` : "—";
+    statNonScoutPercent.textContent =
+      stats.scout.nonScoutPercent !== null ? `${stats.scout.nonScoutPercent}%` : "—";
+  }
+
+  async function loadStats() {
+    try {
+      const res = await fetch("/api/signatures/stats");
+      const data = await res.json();
+      if (data.ok) renderStats(data.stats);
+    } catch (err) {
+      // Stats are a nice-to-have; fail silently rather than blocking the page.
+    }
+  }
+
   async function loadAll() {
     try {
       const [allRes, recentRes, countRes] = await Promise.all([
@@ -76,20 +110,22 @@
 
       if (allData.ok) allData.signatures.forEach((sig) => addSignatureToMap(sig.name, sig.x, sig.y, false));
       if (recentData.ok) renderRecentList(recentData.signatures);
-      if (countData.ok) signatureCountEl.textContent = countData.count;
+      if (countData.ok) signatureCountEl.textContent = countData.count.toLocaleString();
+
+      loadStats();
     } catch (err) {
       setError("Could not reach the server. Is the backend running? (npm start)");
     }
   }
 
-  async function submitSignature(name, county, x, y) {
+  async function submitSignature(name, county, x, y, age, isScout) {
     setError("");
     setBusy(true);
     try {
       const res = await fetch("/api/signatures", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, county, x, y }),
+        body: JSON.stringify({ name, county, x, y, age, isScout }),
       });
       const data = await res.json();
       if (!res.ok || data.ok === false) {
@@ -97,14 +133,18 @@
       }
 
       addSignatureToMap(data.signature.name, data.signature.x, data.signature.y, true);
-      signatureCountEl.textContent = data.count;
+      signatureCountEl.textContent = data.count.toLocaleString();
 
       const recentRes = await fetch("/api/signatures/recent?limit=8");
       const recentData = await recentRes.json();
       if (recentData.ok) renderRecentList(recentData.signatures);
 
+      loadStats();
+
       nameInput.value = "";
       countyInput.value = "";
+      if (ageInput) ageInput.value = "";
+      if (scoutInput) scoutInput.value = "";
 
       const originalText = "SIGN THE COMMITMENT";
       signBtn.textContent = "✅ THANK YOU FOR COMMITTING!";
@@ -123,6 +163,12 @@
     }
   }
 
+  function currentAgeAndScout() {
+    const ageValue = ageInput && ageInput.value.trim() ? Number(ageInput.value) : null;
+    const scoutValue = scoutInput && scoutInput.value ? scoutInput.value : null;
+    return { age: ageValue, isScout: scoutValue };
+  }
+
   // Click on map to sign at that exact spot
   mapContainer.addEventListener("click", function (e) {
     if (e.target.closest(".signature-dot, .signature-label")) return;
@@ -134,7 +180,8 @@
     const rect = mapContainer.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * 100;
     const y = ((e.clientY - rect.top) / rect.height) * 100;
-    submitSignature(nameInput.value.trim(), countyInput.value.trim(), x, y);
+    const { age, isScout } = currentAgeAndScout();
+    submitSignature(nameInput.value.trim(), countyInput.value.trim(), x, y, age, isScout);
   });
 
   // Form submission signs at a semi-random spot on the map
@@ -147,7 +194,8 @@
     }
     const x = 25 + Math.random() * 55;
     const y = 20 + Math.random() * 55;
-    submitSignature(name, countyInput.value.trim(), x, y);
+    const { age, isScout } = currentAgeAndScout();
+    submitSignature(name, countyInput.value.trim(), x, y, age, isScout);
   });
 
   loadAll();
