@@ -42,6 +42,25 @@ if (!GOOGLE_CLIENT_ID) {
 }
 const googleClient = new OAuth2Client(GOOGLE_CLIENT_ID);
 
+// Admin-only access — gates the private "Recent Messengers of Peace" list
+// on map.html so it isn't public. Set ADMIN_KEY as an environment variable
+// (any secret string you pick) both here on the server and, when prompted,
+// in the browser on map.html.
+const ADMIN_KEY = process.env.ADMIN_KEY || "";
+if (!ADMIN_KEY) {
+  console.warn(
+    "Missing ADMIN_KEY environment variable — the private recent-signatures view will refuse all requests until it's set."
+  );
+}
+
+function requireAdmin(req, res, next) {
+  const providedKey = req.get("x-admin-key") || "";
+  if (!ADMIN_KEY || providedKey !== ADMIN_KEY) {
+    return res.status(401).json({ ok: false, error: "Admin access required." });
+  }
+  next();
+}
+
 // ---------------------------------------------------------------------------
 // Database connection
 // ---------------------------------------------------------------------------
@@ -127,8 +146,11 @@ async function initDb() {
 
 app.get("/api/signatures", async (req, res) => {
   try {
+    // Public endpoint — used only to plot anonymous dots on the map, so
+    // names are intentionally left out here. See /api/signatures/recent
+    // (admin-only) for the version that includes names.
     const { rows } = await pool.query(
-      `SELECT id, name, county, x, y, created_at AS "createdAt" FROM signatures ORDER BY created_at ASC`
+      `SELECT id, county, x, y, created_at AS "createdAt" FROM signatures ORDER BY created_at ASC`
     );
     res.json({ ok: true, signatures: rows });
   } catch (err) {
@@ -137,7 +159,11 @@ app.get("/api/signatures", async (req, res) => {
   }
 });
 
-app.get("/api/signatures/recent", async (req, res) => {
+app.get("/api/admin/verify", requireAdmin, (req, res) => {
+  res.json({ ok: true });
+});
+
+app.get("/api/signatures/recent", requireAdmin, async (req, res) => {
   const limit = Math.min(parseInt(req.query.limit, 10) || 8, 50);
   try {
     const { rows } = await pool.query(

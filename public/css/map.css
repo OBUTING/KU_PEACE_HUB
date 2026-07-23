@@ -252,3 +252,16 @@ body.map-body {
   .map-stats-panel { margin: 0 0 20px; }
   .game-embed-frame { height: 78vh; min-height: 520px; }
 }
+
+.admin-unlock-link {
+  background: none;
+  border: none;
+  color: var(--green-deep);
+  font-weight: 700;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 4px;
+  font-size: inherit;
+}
+.admin-unlock-link:hover { color: #147014; }

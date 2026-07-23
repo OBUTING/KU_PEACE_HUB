@@ -137,22 +137,4 @@
       });
     }
   }
-
-  /* ---------------- Peace pledge checklist (local, no backend needed) ---------------- */
-  const pledgeBox = document.getElementById("pledgeBox");
-  const pledgeResult = document.getElementById("pledgeResult");
-  if (pledgeBox && pledgeResult) {
-    const boxes = pledgeBox.querySelectorAll('input[type="checkbox"]');
-    function updateResult() {
-      const checked = Array.from(boxes).filter((b) => b.checked).length;
-      if (checked === 0) {
-        pledgeResult.textContent = "";
-      } else if (checked === boxes.length) {
-        pledgeResult.textContent = "All five — that's a strong week. Come back next week and pick again.";
-      } else {
-        pledgeResult.textContent = `${checked} of ${boxes.length} chosen for this week. Small and consistent beats big and rare.`;
-      }
-    }
-    boxes.forEach((b) => b.addEventListener("change", updateResult));
-  }
 })();

@@ -15,6 +15,72 @@
   const signatureCountEl = document.getElementById("signatureCount");
   const signaturesList = document.getElementById("signaturesList");
 
+  // If someone arrives via a link to #tab-game (e.g. from the home page's
+  // game promo), switch straight to the Game tab instead of defaulting to Map.
+  if (window.location.hash === "#tab-game") {
+    const gameTabBtn = document.getElementById("tab-game-btn");
+    if (gameTabBtn && window.bootstrap) {
+      new window.bootstrap.Tab(gameTabBtn).show();
+    }
+  }
+
+  // ---- Admin-only "Recent Messengers of Peace" ----
+  const ADMIN_KEY_STORAGE = "cg_admin_key";
+  let adminKey = localStorage.getItem(ADMIN_KEY_STORAGE) || "";
+
+  function renderLockedRecent() {
+    signaturesList.innerHTML =
+      '<div class="empty-note">🔒 Visible to the site admin only. ' +
+      '<button type="button" id="adminUnlockBtn" class="admin-unlock-link">Unlock</button></div>';
+    const btn = document.getElementById("adminUnlockBtn");
+    if (btn) btn.addEventListener("click", handleUnlockClick);
+  }
+
+  async function verifyAdminKey(key) {
+    try {
+      const res = await fetch("/api/admin/verify", { headers: { "x-admin-key": key } });
+      return res.ok;
+    } catch (err) {
+      return false;
+    }
+  }
+
+  async function handleUnlockClick() {
+    const entered = prompt("Enter the admin key:");
+    if (!entered) return;
+    const valid = await verifyAdminKey(entered);
+    if (valid) {
+      adminKey = entered;
+      localStorage.setItem(ADMIN_KEY_STORAGE, entered);
+      loadRecentAdminAware();
+    } else {
+      alert("Incorrect admin key.");
+    }
+  }
+
+  async function loadRecentAdminAware() {
+    if (!adminKey) {
+      renderLockedRecent();
+      return;
+    }
+    try {
+      const res = await fetch("/api/signatures/recent?limit=8", {
+        headers: { "x-admin-key": adminKey },
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        renderRecentList(data.signatures);
+      } else {
+        // Stored key is wrong/stale — forget it and show the locked state again.
+        adminKey = "";
+        localStorage.removeItem(ADMIN_KEY_STORAGE);
+        renderLockedRecent();
+      }
+    } catch (err) {
+      renderLockedRecent();
+    }
+  }
+
   // Statistics panel elements
   const statAvgAge = document.getElementById("statAvgAge");
   const statAgeGroup = document.getElementById("statAgeGroup");
@@ -99,19 +165,17 @@
 
   async function loadAll() {
     try {
-      const [allRes, recentRes, countRes] = await Promise.all([
+      const [allRes, countRes] = await Promise.all([
         fetch("/api/signatures"),
-        fetch("/api/signatures/recent?limit=8"),
         fetch("/api/signatures/count"),
       ]);
       const allData = await allRes.json();
-      const recentData = await recentRes.json();
       const countData = await countRes.json();
 
-      if (allData.ok) allData.signatures.forEach((sig) => addSignatureToMap(sig.name, sig.x, sig.y, false));
-      if (recentData.ok) renderRecentList(recentData.signatures);
+      if (allData.ok) allData.signatures.forEach((sig) => addSignatureToMap(null, sig.x, sig.y, false));
       if (countData.ok) signatureCountEl.textContent = countData.count.toLocaleString();
 
+      loadRecentAdminAware();
       loadStats();
     } catch (err) {
       setError("Could not reach the server. Is the backend running? (npm start)");
@@ -135,10 +199,7 @@
       addSignatureToMap(data.signature.name, data.signature.x, data.signature.y, true);
       signatureCountEl.textContent = data.count.toLocaleString();
 
-      const recentRes = await fetch("/api/signatures/recent?limit=8");
-      const recentData = await recentRes.json();
-      if (recentData.ok) renderRecentList(recentData.signatures);
-
+      loadRecentAdminAware();
       loadStats();
 
       nameInput.value = "";
