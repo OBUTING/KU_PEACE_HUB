@@ -18,6 +18,7 @@
 const express = require("express");
 const path = require("path");
 const crypto = require("crypto");
+const https = require("https");
 const bcrypt = require("bcryptjs");
 const { Pool } = require("pg");
 const { OAuth2Client } = require("google-auth-library");
@@ -136,6 +137,18 @@ async function initDb() {
   // was required then, but Google-only accounts have no password.
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;`);
+
+  // Anonymous incident reports — deliberately has no name/contact column,
+  // so there's nothing identifying to store even by accident.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS incident_reports (
+      id UUID PRIMARY KEY,
+      category TEXT,
+      county TEXT,
+      description TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
 
   console.log("Database ready (tables created if they didn't already exist).");
 }
@@ -524,6 +537,197 @@ app.post("/api/auth/google", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(401).json({ ok: false, error: "Could not verify your Google sign-in. Please try again." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Peace Guide — AI chat assistant (public/peace-guide.html)
+//
+// Calls the Anthropic API directly over Node's built-in `https` module —
+// no SDK dependency needed. Requires an ANTHROPIC_API_KEY environment
+// variable; the key is never sent to the browser, only used server-side.
+// ---------------------------------------------------------------------------
+
+const PEACE_GUIDE_SYSTEM_PROMPT = `You are the Peace Guide, the conversational assistant for the KU Peace Innovation Hub — a youth peacebuilding project run under Kenyatta University Scouts, focused on Kenya's 2027 general elections.
+
+Your job: answer questions about peacebuilding, civic engagement, conflict prevention, electoral violence, mediation, and youth participation in Kenyan civic life.
+
+Voice: warm, clear, encouraging — speaking to Kenyan youth (roughly ages 13-25), never condescending. Plain language over jargon. Keep answers focused: 2-4 short paragraphs, or a short list when steps are being explained. Where relevant, ground answers in the Kenyan context (counties, IEBC, NCIC, past election cycles) without being party-political or taking sides on any candidate, party, or contested political claim — stay neutral on partisan matters and instead focus on process, safety, rights, and constructive action.
+
+If someone describes an emergency, immediate danger, or wanting to report an incident, tell them to call 999 / 112 (Kenya's national emergency lines) right now, and mention this site's Report page for non-urgent reporting.
+
+If a question is dangerous (e.g. asking how to incite violence) or completely unrelated to peacebuilding/civic life, gently redirect to what the Hub is for.`;
+
+const PEACE_GUIDE_MAX_HISTORY_MESSAGES = 20;
+const PEACE_GUIDE_MAX_MESSAGE_CHARS = 4000;
+
+// Simple in-memory per-IP rate limiter — fine for a single Render instance.
+const PEACE_GUIDE_RATE_WINDOW_MS = 60_000;
+const PEACE_GUIDE_RATE_MAX_REQUESTS = 8;
+const peaceGuideRateMap = new Map();
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, entry] of peaceGuideRateMap) {
+    if (now - entry.windowStart > PEACE_GUIDE_RATE_WINDOW_MS) peaceGuideRateMap.delete(ip);
+  }
+}, PEACE_GUIDE_RATE_WINDOW_MS).unref();
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) return forwarded.split(",")[0].trim();
+  return req.socket?.remoteAddress || "unknown";
+}
+
+function checkPeaceGuideRateLimit(ip) {
+  const now = Date.now();
+  const entry = peaceGuideRateMap.get(ip);
+
+  if (!entry || now - entry.windowStart > PEACE_GUIDE_RATE_WINDOW_MS) {
+    peaceGuideRateMap.set(ip, { count: 1, windowStart: now });
+    return { allowed: true };
+  }
+  if (entry.count >= PEACE_GUIDE_RATE_MAX_REQUESTS) {
+    const retryAfterSeconds = Math.ceil((entry.windowStart + PEACE_GUIDE_RATE_WINDOW_MS - now) / 1000);
+    return { allowed: false, retryAfterSeconds };
+  }
+  entry.count += 1;
+  return { allowed: true };
+}
+
+function sanitizePeaceGuideMessages(rawMessages) {
+  if (!Array.isArray(rawMessages)) return null;
+  const trimmed = rawMessages.slice(-PEACE_GUIDE_MAX_HISTORY_MESSAGES);
+  const cleaned = [];
+  for (const m of trimmed) {
+    if (!m || (m.role !== "user" && m.role !== "assistant")) continue;
+    if (typeof m.content !== "string" || !m.content.trim()) continue;
+    cleaned.push({ role: m.role, content: m.content.slice(0, PEACE_GUIDE_MAX_MESSAGE_CHARS) });
+  }
+  return cleaned;
+}
+
+function callClaude(messages) {
+  return new Promise((resolve, reject) => {
+    const payload = JSON.stringify({
+      model: "claude-sonnet-4-6",
+      max_tokens: 1000,
+      system: PEACE_GUIDE_SYSTEM_PROMPT,
+      messages,
+    });
+
+    const options = {
+      hostname: "api.anthropic.com",
+      path: "/v1/messages",
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Content-Length": Buffer.byteLength(payload),
+        "x-api-key": process.env.ANTHROPIC_API_KEY,
+        "anthropic-version": "2023-06-01",
+      },
+    };
+
+    const apiReq = https.request(options, (apiRes) => {
+      let body = "";
+      apiRes.on("data", (chunk) => (body += chunk));
+      apiRes.on("end", () => {
+        try {
+          const parsed = JSON.parse(body);
+          if (apiRes.statusCode >= 400) {
+            reject(new Error(parsed?.error?.message || `Anthropic API error ${apiRes.statusCode}`));
+            return;
+          }
+          resolve(parsed);
+        } catch (err) {
+          reject(err);
+        }
+      });
+    });
+
+    apiReq.on("error", reject);
+    apiReq.write(payload);
+    apiReq.end();
+  });
+}
+
+app.post("/api/peace-guide", async (req, res) => {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return res.status(500).json({ error: "Server is not configured with an API key." });
+  }
+
+  const ip = getClientIp(req);
+  const { allowed, retryAfterSeconds } = checkPeaceGuideRateLimit(ip);
+  if (!allowed) {
+    res.set("Retry-After", String(retryAfterSeconds));
+    return res.status(429).json({
+      error: `Too many messages — please wait ${retryAfterSeconds}s before asking again.`,
+    });
+  }
+
+  const messages = sanitizePeaceGuideMessages(req.body && req.body.messages);
+  if (!messages || messages.length === 0) {
+    return res.status(400).json({ error: 'Expected a non-empty "messages" array.' });
+  }
+
+  try {
+    const apiResponse = await callClaude(messages);
+    const text = (apiResponse.content || [])
+      .filter((block) => block.type === "text")
+      .map((block) => block.text)
+      .join("\n");
+    res.json({ reply: text || "I couldn't generate a response — please try again." });
+  } catch (err) {
+    console.error(err);
+    res.status(502).json({ error: "Could not reach the Peace Guide right now. Please try again." });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Anonymous incident reports (public/report.html)
+//
+// No name or contact field exists on this table by design — reports are
+// meant to be genuinely anonymous. This is NOT a live emergency channel;
+// the front end makes that clear and always leads with Kenya's real
+// emergency numbers (999 / 112) for anything urgent.
+// ---------------------------------------------------------------------------
+
+app.post("/api/reports", async (req, res) => {
+  const { category, county, description } = req.body || {};
+
+  const cleanDescription = (description || "").toString().trim().slice(0, 2000);
+  if (!cleanDescription) {
+    return res.status(400).json({ ok: false, error: "Please describe what happened." });
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO incident_reports (id, category, county, description)
+       VALUES ($1, $2, $3, $4)`,
+      [
+        crypto.randomUUID(),
+        (category || "").toString().trim().slice(0, 60),
+        (county || "").toString().trim().slice(0, 60),
+        cleanDescription,
+      ]
+    );
+    res.status(201).json({ ok: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save your report. Please try again." });
+  }
+});
+
+app.get("/api/reports", requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, category, county, description, created_at AS "createdAt"
+       FROM incident_reports ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json({ ok: true, reports: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load reports." });
   }
 });
 

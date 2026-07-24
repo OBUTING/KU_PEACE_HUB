@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Report / Get Help — Common Ground</title>
+<meta name="description" content="Real emergency contacts for Kenya, plus a way to anonymously report incitement or tension to the KU Peace Hub team.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,450;0,9..144,600;1,9..144,450&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/report.css">
+</head>
+<body>
+
+<nav class="navbar navbar-expand-lg cg-navbar sticky-top">
+  <div class="container wrap">
+    <a class="navbar-brand" href="index.html">
+      <img src="images/logo.jpg" alt="Kenyatta University Scouts — Panthera Rover Crew logo">
+      Common Ground
+    </a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navLinks" aria-controls="navLinks" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navLinks">
+      <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+        <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="about.html">What breaks peace</a></li>
+        <li class="nav-item"><a class="nav-link" href="pledge.html">Youth pledge</a></li>
+        <li class="nav-item"><a class="nav-link" href="map.html">Peace map</a></li>
+        <li class="nav-item"><a class="nav-link" href="peace-tree.html">Peace Tree project</a></li>
+        <li class="nav-item"><a class="nav-link" href="peace-guide.html">Peace Guide</a></li>
+        <li class="nav-item"><a class="nav-link" href="report.html">Report / Get help</a></li>
+        <li class="nav-item"><a class="nav-link nav-cta" href="login.html">Log in</a></li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<div class="danger-banner">
+  <div class="wrap">
+    <strong>If you or someone else is in immediate danger, call <a href="tel:999">999</a> or <a href="tel:112">112</a> right now.</strong>
+    <span>This page is not monitored in real time and is not a substitute for emergency services.</span>
+  </div>
+</div>
+
+<section class="page-hero">
+  <div class="wrap">
+    <div class="eyebrow">Real help, real contacts</div>
+    <h1>Report an incident or get help.</h1>
+    <p class="section-lede">Whether it's urgent or something you want on record, here's where it actually goes — plus a way to tell the KU Peace Hub team anonymously.</p>
+  </div>
+</section>
+
+<section id="contacts">
+  <div class="wrap">
+    <div class="eyebrow">Kenya's real emergency &amp; reporting contacts</div>
+    <h2>Who to call, and when</h2>
+
+    <div class="contacts-grid">
+      <div class="contact-card contact-card--urgent reveal">
+        <h3>Police / general emergency</h3>
+        <p class="contact-numbers"><a href="tel:999">999</a> · <a href="tel:112">112</a></p>
+        <p>For anything happening right now — violence, immediate danger, a crime in progress.</p>
+      </div>
+
+      <div class="contact-card reveal">
+        <h3>NCIC — hate speech &amp; incitement</h3>
+        <p class="contact-numbers"><a href="tel:0202585702">020 258 5702</a></p>
+        <p>WhatsApp: <a href="https://wa.me/254702777000" target="_blank" rel="noopener">0702 777 000</a><br>
+        The National Cohesion and Integration Commission handles ethnic incitement, hate speech, and threats to national cohesion. <a href="https://www.cohesion.go.ke" target="_blank" rel="noopener">cohesion.go.ke</a></p>
+      </div>
+
+      <div class="contact-card reveal">
+        <h3>KNCHR — human rights violations</h3>
+        <p class="contact-numbers"><a href="tel:0800720627">0800 720 627</a> <span class="toll-free">(toll-free)</span></p>
+        <p>SMS: <strong>22359</strong> · Email: <a href="mailto:complaint@knchr.org">complaint@knchr.org</a><br>
+        The Kenya National Commission on Human Rights monitors and responds to rights violations, including excessive force.</p>
+      </div>
+
+      <div class="contact-card reveal">
+        <h3>Emotional / trauma support</h3>
+        <p class="contact-numbers"><a href="tel:0800724280">0800 724 280</a> <span class="toll-free">(free)</span></p>
+        <p>Trained counsellors, free of charge, if you or someone you know is shaken by something you witnessed or experienced.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="anonymous-report" class="report-section">
+  <div class="wrap">
+    <div class="eyebrow">Tell the KU Peace Hub team</div>
+    <h2>Report anonymously</h2>
+    <p class="section-lede">This form doesn't ask for your name, phone number, or anything identifying. It's reviewed periodically by the KU Peace Hub team — not in real time, and not a replacement for calling 999/112 or NCIC directly for anything urgent.</p>
+
+    <form class="report-form reveal" id="reportForm">
+      <div class="report-field">
+        <label for="reportCategory">What kind of incident? <span>(optional)</span></label>
+        <select id="reportCategory">
+          <option value="">Prefer not to say</option>
+          <option value="Hate speech / incitement">Hate speech / incitement</option>
+          <option value="Threat of violence">Threat of violence</option>
+          <option value="Vote buying / bribery">Vote buying / bribery</option>
+          <option value="Misinformation">Misinformation</option>
+          <option value="Bullying / harassment">Bullying / harassment</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+
+      <div class="report-field">
+        <label for="reportCounty">County <span>(optional)</span></label>
+        <select id="reportCounty">
+          <option value="">Prefer not to say</option>
+        </select>
+      </div>
+
+      <div class="report-field">
+        <label for="reportDescription">What happened? <span>(required, no names needed)</span></label>
+        <textarea id="reportDescription" rows="5" maxlength="2000" placeholder="Describe what you saw or experienced, as much or as little detail as you're comfortable sharing…" required></textarea>
+      </div>
+
+      <button type="submit" class="btn-cg-primary" id="reportSubmitBtn">Submit anonymously</button>
+      <p class="report-error" id="reportError" hidden></p>
+      <p class="report-success" id="reportSuccess" hidden>Thank you — your report has been recorded anonymously.</p>
+    </form>
+  </div>
+</section>
+
+<footer class="cg-footer">
+  <div class="wrap">
+    <div class="mark">
+      <img src="images/logo.jpg" alt="Kenyatta University Scouts — Panthera Rover Crew logo">
+      Common Ground
+    </div>
+    <p>Real contacts first. Anonymous reporting always available.</p>
+    <div class="copyright">&copy; <span data-year></span> KU Peace Innovation Hub — Kenyatta University Scouts.</div>
+  </div>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/main.js" defer></script>
+<script src="js/report.js" defer></script>
+</body>
+</html>
