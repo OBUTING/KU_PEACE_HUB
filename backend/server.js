@@ -129,7 +129,10 @@ async function initDb() {
       email TEXT UNIQUE NOT NULL,
       password_hash TEXT,
       google_id TEXT UNIQUE,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+      role TEXT NOT NULL DEFAULT 'member',
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
 
@@ -137,6 +140,11 @@ async function initDb() {
   // was required then, but Google-only accounts have no password.
   await pool.query(`ALTER TABLE users ALTER COLUMN password_hash DROP NOT NULL;`);
   await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS google_id TEXT UNIQUE;`);
+  // Dashboard-only metadata. Authorization still uses ADMIN_KEY so adding a
+  // role/status here does not change existing login or signup behaviour.
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'member';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';`);
+  await pool.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();`);
 
   // Anonymous incident reports — deliberately has no name/contact column,
   // so there's nothing identifying to store even by accident.
@@ -150,12 +158,385 @@ async function initDb() {
     );
   `);
 
+  // Dashboard data. These records are deliberately kept separate from the
+  // public-facing tables above so the admin workspace can grow without
+  // changing the behaviour of the existing site.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS volunteer_applications (
+      id UUID PRIMARY KEY,
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      county TEXT NOT NULL DEFAULT '',
+      interests JSONB NOT NULL DEFAULT '[]'::jsonb,
+      availability TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      notes TEXT NOT NULL DEFAULT '',
+      submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT volunteer_applications_status_check
+        CHECK (status IN ('pending', 'reviewed', 'approved', 'declined'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS content_items (
+      id UUID PRIMARY KEY,
+      type TEXT NOT NULL DEFAULT 'news',
+      title TEXT NOT NULL,
+      summary TEXT NOT NULL DEFAULT '',
+      body TEXT NOT NULL DEFAULT '',
+      image_url TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      event_at TIMESTAMPTZ,
+      location TEXT NOT NULL DEFAULT '',
+      published_at TIMESTAMPTZ,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT content_items_type_check CHECK (type IN ('news', 'event')),
+      CONSTRAINT content_items_status_check
+        CHECK (status IN ('draft', 'scheduled', 'published', 'archived'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS learning_materials (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      format TEXT NOT NULL DEFAULT 'article',
+      category TEXT NOT NULL DEFAULT '',
+      link_url TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT learning_materials_status_check
+        CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS resources (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      file_url TEXT NOT NULL DEFAULT '',
+      file_name TEXT NOT NULL DEFAULT '',
+      file_type TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT resources_status_check
+        CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS admin_games (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      game_url TEXT NOT NULL DEFAULT '',
+      instructions TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT admin_games_status_check
+        CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'planning',
+      progress INTEGER NOT NULL DEFAULT 0,
+      owner TEXT NOT NULL DEFAULT '',
+      start_date DATE,
+      due_date DATE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT projects_status_check
+        CHECK (status IN ('planning', 'active', 'on_hold', 'completed')),
+      CONSTRAINT projects_progress_check CHECK (progress BETWEEN 0 AND 100)
+    );
+  `);
+
   console.log("Database ready (tables created if they didn't already exist).");
 }
 
 // ---------------------------------------------------------------------------
 // Signatures — Messengers of Peace map
 // ---------------------------------------------------------------------------
+
+// ---------------------------------------------------------------------------
+// Admin dashboard data
+// ---------------------------------------------------------------------------
+
+function cleanAdminText(value, maxLength) {
+  if (value === undefined || value === null) return "";
+  return String(value).trim().slice(0, maxLength);
+}
+
+function cleanAdminDate(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? null : date.toISOString();
+}
+
+function cleanAdminDateOnly(value) {
+  if (!value) return null;
+  const date = new Date(value);
+  return Number.isNaN(date.valueOf()) ? null : date.toISOString().slice(0, 10);
+}
+
+function cleanAdminList(value) {
+  let values = value;
+  if (typeof values === "string") {
+    try {
+      values = JSON.parse(values);
+    } catch (err) {
+      values = values.split(",");
+    }
+  }
+  if (!Array.isArray(values)) return [];
+  return values
+    .map((item) => cleanAdminText(item, 80))
+    .filter(Boolean)
+    .slice(0, 20);
+}
+
+function cleanAdminEnum(value, options, fallback) {
+  const cleaned = cleanAdminText(value, 40).toLowerCase();
+  return options.includes(cleaned) ? cleaned : fallback;
+}
+
+function cleanAdminProgress(value) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return 0;
+  return Math.max(0, Math.min(100, Math.round(parsed)));
+}
+
+function textField(key, column, maxLength, options = {}) {
+  return {
+    key,
+    column,
+    required: !!options.required,
+    defaultValue: options.defaultValue === undefined ? "" : options.defaultValue,
+    normalize: (value) => cleanAdminText(value, maxLength),
+  };
+}
+
+function dateField(key, column, options = {}) {
+  return {
+    key,
+    column,
+    required: !!options.required,
+    defaultValue: options.defaultValue === undefined ? null : options.defaultValue,
+    normalize: options.dateOnly ? cleanAdminDateOnly : cleanAdminDate,
+  };
+}
+
+function enumField(key, column, options, defaultValue) {
+  return {
+    key,
+    column,
+    defaultValue,
+    normalize: (value) => cleanAdminEnum(value, options, defaultValue),
+  };
+}
+
+const ADMIN_COLLECTIONS = {
+  volunteers: {
+    table: "volunteer_applications",
+    orderBy: "submitted_at DESC",
+    select: `id, full_name AS "name", email, county, interests, availability, status, notes,
+             submitted_at AS "submittedAt", created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("name", "full_name", 120, { required: true }),
+      textField("email", "email", 160),
+      textField("county", "county", 80),
+      {
+        key: "interests",
+        column: "interests",
+        defaultValue: [],
+        normalize: cleanAdminList,
+        toDatabase: (value) => JSON.stringify(value),
+      },
+      textField("availability", "availability", 300),
+      enumField("status", "status", ["pending", "reviewed", "approved", "declined"], "pending"),
+      textField("notes", "notes", 4000),
+      dateField("submittedAt", "submitted_at", { defaultValue: () => new Date().toISOString() }),
+    ],
+  },
+  content: {
+    table: "content_items",
+    orderBy: "COALESCE(published_at, created_at) DESC",
+    select: `id, type, title, summary, body, image_url AS "imageUrl", status,
+             event_at AS "eventAt", location, published_at AS "publishedAt",
+             created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      enumField("type", "type", ["news", "event"], "news"),
+      textField("title", "title", 180, { required: true }),
+      textField("summary", "summary", 600),
+      textField("body", "body", 20000),
+      textField("imageUrl", "image_url", 1200),
+      enumField("status", "status", ["draft", "scheduled", "published", "archived"], "draft"),
+      dateField("eventAt", "event_at"),
+      textField("location", "location", 180),
+      dateField("publishedAt", "published_at"),
+    ],
+  },
+  materials: {
+    table: "learning_materials",
+    orderBy: "created_at DESC",
+    select: `id, title, description, format, category, link_url AS "linkUrl", status,
+             created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      textField("format", "format", 60, { defaultValue: "article" }),
+      textField("category", "category", 100),
+      textField("linkUrl", "link_url", 1200),
+      enumField("status", "status", ["draft", "published", "archived"], "draft"),
+    ],
+  },
+  resources: {
+    table: "resources",
+    orderBy: "created_at DESC",
+    select: `id, title, description, category, file_url AS "fileUrl", file_name AS "fileName",
+             file_type AS "fileType", status, created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      textField("category", "category", 100),
+      textField("fileUrl", "file_url", 1200),
+      textField("fileName", "file_name", 255),
+      textField("fileType", "file_type", 120),
+      enumField("status", "status", ["draft", "published", "archived"], "draft"),
+    ],
+  },
+  games: {
+    table: "admin_games",
+    orderBy: "created_at DESC",
+    select: `id, title, description, game_url AS "gameUrl", instructions, status,
+             created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      textField("gameUrl", "game_url", 1200),
+      textField("instructions", "instructions", 10000),
+      enumField("status", "status", ["draft", "published", "archived"], "draft"),
+    ],
+  },
+  projects: {
+    table: "projects",
+    orderBy: "updated_at DESC",
+    select: `id, title, description, status, progress, owner, start_date AS "startDate",
+             due_date AS "dueDate", created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      enumField("status", "status", ["planning", "active", "on_hold", "completed"], "planning"),
+      { key: "progress", column: "progress", defaultValue: 0, normalize: cleanAdminProgress },
+      textField("owner", "owner", 120),
+      dateField("startDate", "start_date", { dateOnly: true }),
+      dateField("dueDate", "due_date", { dateOnly: true }),
+    ],
+  },
+};
+
+const ADMIN_STARTER_DATA = {
+  content: [{
+    id: "starter-news",
+    type: "news",
+    title: "Publish your first update",
+    summary: "Share a peacebuilding story, announcement, or upcoming event from the dashboard.",
+    status: "draft",
+    isStarter: true,
+  }],
+  materials: [{
+    id: "starter-material",
+    title: "Add a learning material",
+    description: "Link an article, video, guide, or training module for your community.",
+    format: "article",
+    status: "draft",
+    isStarter: true,
+  }],
+  resources: [{
+    id: "starter-resource",
+    title: "Add a downloadable resource",
+    description: "Store the file URL and publishing details for a resource people can download.",
+    status: "draft",
+    isStarter: true,
+  }],
+  games: [{
+    id: "starter-game",
+    title: "Peace Bridge",
+    description: "The existing interactive peace-building game is ready to be added to the catalogue.",
+    gameUrl: "game.html",
+    status: "draft",
+    isStarter: true,
+  }],
+  projects: [{
+    id: "starter-project",
+    title: "Portable Peace Dialogue Tree",
+    description: "Add a project record to track its goals, owner, timeline, and progress.",
+    status: "planning",
+    progress: 0,
+    isStarter: true,
+  }],
+};
+
+function getAdminCollection(collection) {
+  return ADMIN_COLLECTIONS[collection] || null;
+}
+
+function getAdminLimit(rawLimit, fallback = 50) {
+  const parsed = Number.parseInt(rawLimit, 10);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(1, Math.min(parsed, 200));
+}
+
+function hasOwn(object, key) {
+  return Object.prototype.hasOwnProperty.call(object, key);
+}
+
+function hasRequiredValue(value) {
+  return typeof value === "string" ? value.trim().length > 0 : value !== null && value !== undefined;
+}
+
+function getDefaultFieldValue(field) {
+  return typeof field.defaultValue === "function" ? field.defaultValue() : field.defaultValue;
+}
+
+function normalizeAdminFields(schema, input, partial) {
+  const body = input && typeof input === "object" && !Array.isArray(input) ? input : {};
+  const fields = [];
+  for (const field of schema.fields) {
+    const provided = hasOwn(body, field.key);
+    if (partial && !provided) continue;
+    const normalized = field.normalize(provided ? body[field.key] : getDefaultFieldValue(field));
+    if (field.required && !hasRequiredValue(normalized)) return { error: `${field.key} is required.` };
+    fields.push({ ...field, value: field.toDatabase ? field.toDatabase(normalized) : normalized });
+  }
+  return { fields };
+}
+
+function isUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value || "");
+}
+
+async function listAdminCollection(schema, limit) {
+  const { rows } = await pool.query(
+    `SELECT ${schema.select} FROM ${schema.table} ORDER BY ${schema.orderBy} LIMIT $1`,
+    [limit]
+  );
+  return rows;
+}
 
 app.get("/api/signatures", async (req, res) => {
   try {
@@ -174,6 +555,269 @@ app.get("/api/signatures", async (req, res) => {
 
 app.get("/api/admin/verify", requireAdmin, (req, res) => {
   res.json({ ok: true });
+});
+
+// A compact dashboard summary. Counts come from the database; starter cards
+// only appear in `recent` for empty admin-managed collections and are never
+// persisted as fake applications or analytics.
+app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
+  try {
+    const [
+      userResult,
+      volunteerResult,
+      contentResult,
+      materialResult,
+      resourceResult,
+      gameResult,
+      projectResult,
+      signatureResult,
+      pledgeResult,
+      gamePledgeResult,
+      reportResult,
+      recentUsers,
+      recentVolunteers,
+      recentContent,
+      recentMaterials,
+      recentResources,
+      recentGames,
+      recentProjects,
+    ] = await Promise.all([
+      pool.query(`SELECT COUNT(*)::int AS count FROM users`),
+      pool.query(`SELECT COUNT(*)::int AS count, COUNT(*) FILTER (WHERE status = 'pending')::int AS pending FROM volunteer_applications`),
+      pool.query(`SELECT COUNT(*)::int AS count, COUNT(*) FILTER (WHERE type = 'news')::int AS news, COUNT(*) FILTER (WHERE type = 'event')::int AS events FROM content_items`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM learning_materials`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM resources`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM admin_games`),
+      pool.query(`SELECT COUNT(*)::int AS count, COUNT(*) FILTER (WHERE status = 'active')::int AS active, COUNT(*) FILTER (WHERE status = 'completed')::int AS completed FROM projects`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM signatures`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM pledges`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM game_pledges`),
+      pool.query(`SELECT COUNT(*)::int AS count FROM incident_reports`),
+      pool.query(`SELECT id, name, email, role, status, created_at AS "createdAt", updated_at AS "updatedAt" FROM users ORDER BY created_at DESC LIMIT 5`),
+      listAdminCollection(ADMIN_COLLECTIONS.volunteers, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.content, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.materials, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.resources, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.games, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.projects, 5),
+    ]);
+
+    const count = (result, key = "count") => Number(result.rows[0][key] || 0);
+    const current = {
+      content: recentContent,
+      materials: recentMaterials,
+      resources: recentResources,
+      games: recentGames,
+      projects: recentProjects,
+    };
+    const withStarter = (collection) => current[collection].length
+      ? current[collection]
+      : ADMIN_STARTER_DATA[collection];
+
+    res.json({
+      ok: true,
+      metrics: {
+        users: count(userResult),
+        volunteers: count(volunteerResult),
+        content: count(contentResult),
+        materials: count(materialResult),
+        resources: count(resourceResult),
+        games: count(gameResult),
+        projects: count(projectResult),
+        registrations: count(userResult),
+        // The public site does not currently record material/course completion events.
+        courseCompletions: 0,
+        courseCompletionTracking: false,
+      },
+      breakdowns: {
+        volunteers: { pending: count(volunteerResult, "pending") },
+        content: { news: count(contentResult, "news"), events: count(contentResult, "events") },
+        projects: {
+          active: count(projectResult, "active"),
+          completed: count(projectResult, "completed"),
+        },
+      },
+      analytics: {
+        // Visitor events are not currently captured elsewhere in the app.
+        visitors: null,
+        visitorTracking: false,
+        registrations: count(userResult),
+        courseCompletions: 0,
+        courseCompletionTracking: false,
+        signatures: count(signatureResult),
+        pledges: count(pledgeResult),
+        gameCompletions: count(gamePledgeResult),
+        incidentReports: count(reportResult),
+      },
+      recent: {
+        users: recentUsers.rows,
+        volunteers: recentVolunteers,
+        content: withStarter("content"),
+        materials: withStarter("materials"),
+        resources: withStarter("resources"),
+        games: withStarter("games"),
+        projects: withStarter("projects"),
+      },
+      emptyCollections: Object.keys(current).filter((collection) => current[collection].length === 0),
+    });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load dashboard data." });
+  }
+});
+
+const ADMIN_USER_ROLES = ["member", "volunteer", "editor", "admin"];
+const ADMIN_USER_STATUSES = ["active", "suspended"];
+const ADMIN_USER_SELECT = `id, name, email, role, status,
+  created_at AS "createdAt", updated_at AS "updatedAt"`;
+
+// User management data. Password hashes and OAuth identifiers are deliberately
+// never included in an admin response. Role/status are admin metadata only;
+// they do not alter the existing ADMIN_KEY authorization model.
+app.get("/api/admin/users", requireAdmin, async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT ${ADMIN_USER_SELECT} FROM users
+       ORDER BY created_at DESC LIMIT $1`,
+      [getAdminLimit(req.query.limit)]
+    );
+    res.json({ ok: true, users: rows, items: rows, count: rows.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load users." });
+  }
+});
+
+app.patch("/api/admin/users/:id", requireAdmin, async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid user id." });
+
+  const body = req.body && typeof req.body === "object" && !Array.isArray(req.body) ? req.body : {};
+  const assignments = [];
+  const values = [];
+
+  if (hasOwn(body, "name")) {
+    values.push(cleanAdminText(body.name, 80));
+    assignments.push(`name = $${values.length}`);
+  }
+  if (hasOwn(body, "role")) {
+    const role = cleanAdminText(body.role, 40).toLowerCase();
+    if (!ADMIN_USER_ROLES.includes(role)) {
+      return res.status(400).json({ ok: false, error: "role must be member, volunteer, editor, or admin." });
+    }
+    values.push(role);
+    assignments.push(`role = $${values.length}`);
+  }
+  if (hasOwn(body, "status")) {
+    const status = cleanAdminText(body.status, 40).toLowerCase();
+    if (!ADMIN_USER_STATUSES.includes(status)) {
+      return res.status(400).json({ ok: false, error: "status must be active or suspended." });
+    }
+    values.push(status);
+    assignments.push(`status = $${values.length}`);
+  }
+  if (!assignments.length) {
+    return res.status(400).json({ ok: false, error: "Provide name, role, or status to update." });
+  }
+
+  assignments.push("updated_at = now()");
+  values.push(req.params.id);
+
+  try {
+    const { rows } = await pool.query(
+      `UPDATE users
+       SET ${assignments.join(", ")}
+       WHERE id = $${values.length}
+       RETURNING ${ADMIN_USER_SELECT}`,
+      values
+    );
+    if (!rows[0]) return res.status(404).json({ ok: false, error: "User not found." });
+    res.json({ ok: true, user: rows[0], item: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not update user." });
+  }
+});
+
+app.get("/api/admin/:collection", requireAdmin, async (req, res) => {
+  const schema = getAdminCollection(req.params.collection);
+  if (!schema) return res.status(404).json({ ok: false, error: "Unknown admin collection." });
+
+  try {
+    const items = await listAdminCollection(schema, getAdminLimit(req.query.limit));
+    res.json({ ok: true, collection: req.params.collection, items, count: items.length });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load admin data." });
+  }
+});
+
+app.post("/api/admin/:collection", requireAdmin, async (req, res) => {
+  const schema = getAdminCollection(req.params.collection);
+  if (!schema) return res.status(404).json({ ok: false, error: "Unknown admin collection." });
+
+  const normalized = normalizeAdminFields(schema, req.body, false);
+  if (normalized.error) return res.status(400).json({ ok: false, error: normalized.error });
+
+  try {
+    const columns = ["id", ...normalized.fields.map((field) => field.column)];
+    const values = [crypto.randomUUID(), ...normalized.fields.map((field) => field.value)];
+    const placeholders = values.map((_, index) => `$${index + 1}`);
+    const { rows } = await pool.query(
+      `INSERT INTO ${schema.table} (${columns.join(", ")})
+       VALUES (${placeholders.join(", ")})
+       RETURNING ${schema.select}`,
+      values
+    );
+    res.status(201).json({ ok: true, collection: req.params.collection, item: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save admin data." });
+  }
+});
+
+app.patch("/api/admin/:collection/:id", requireAdmin, async (req, res) => {
+  const schema = getAdminCollection(req.params.collection);
+  if (!schema) return res.status(404).json({ ok: false, error: "Unknown admin collection." });
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid item id." });
+
+  const normalized = normalizeAdminFields(schema, req.body, true);
+  if (normalized.error) return res.status(400).json({ ok: false, error: normalized.error });
+  if (normalized.fields.length === 0) {
+    return res.status(400).json({ ok: false, error: "Provide at least one editable field." });
+  }
+
+  try {
+    const assignments = normalized.fields.map((field, index) => `${field.column} = $${index + 1}`);
+    assignments.push("updated_at = now()");
+    const values = [...normalized.fields.map((field) => field.value), req.params.id];
+    const { rows } = await pool.query(
+      `UPDATE ${schema.table}
+       SET ${assignments.join(", ")}
+       WHERE id = $${values.length}
+       RETURNING ${schema.select}`,
+      values
+    );
+    if (!rows[0]) return res.status(404).json({ ok: false, error: "Admin item not found." });
+    res.json({ ok: true, collection: req.params.collection, item: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not update admin data." });
+  }
+});
+
+app.delete("/api/admin/:collection/:id", requireAdmin, async (req, res) => {
+  const schema = getAdminCollection(req.params.collection);
+  if (!schema) return res.status(404).json({ ok: false, error: "Unknown admin collection." });
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid item id." });
+
+  try {
+    const { rowCount } = await pool.query(`DELETE FROM ${schema.table} WHERE id = $1`, [req.params.id]);
+    if (!rowCount) return res.status(404).json({ ok: false, error: "Admin item not found." });
+    res.json({ ok: true, collection: req.params.collection, id: req.params.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not delete admin data." });
+  }
 });
 
 app.get("/api/signatures/recent", requireAdmin, async (req, res) => {

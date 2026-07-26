@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Common Ground administration dashboard">
+  <title>Admin Dashboard | Common Ground</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,600&family=Karla:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/admin.css">
+</head>
+<body class="admin-body">
+  <a class="admin-skip-link" href="#adminContent">Skip to content</a>
+
+  <div class="admin-shell" id="adminShell">
+    <aside class="admin-sidebar" id="adminSidebar" aria-label="Admin navigation">
+      <div class="sidebar-top">
+        <a class="admin-brand" href="index.html" aria-label="Common Ground home">
+          <span class="admin-brand-mark"><img src="images/logo.jpg" alt=""></span>
+          <span><strong>Common Ground</strong><small>Admin workspace</small></span>
+        </a>
+        <button class="sidebar-close" type="button" id="sidebarClose" aria-label="Close menu"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+
+      <nav class="admin-nav" aria-label="Workspace sections">
+        <p class="nav-label">Workspace</p>
+        <button class="admin-nav-link is-active" type="button" data-view-target="overview"><i class="fa-solid fa-grid-2"></i><span>Overview</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="users"><i class="fa-solid fa-users"></i><span>People</span><b class="nav-count" data-count="users">248</b></button>
+        <button class="admin-nav-link" type="button" data-view-target="applications"><i class="fa-regular fa-folder-open"></i><span>Applications</span><b class="nav-count nav-count-warm" data-count="applications">8</b></button>
+
+        <p class="nav-label nav-label-spaced">Publish &amp; learn</p>
+        <button class="admin-nav-link" type="button" data-view-target="content"><i class="fa-regular fa-newspaper"></i><span>News &amp; events</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="learning"><i class="fa-solid fa-graduation-cap"></i><span>Learning hub</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="resources"><i class="fa-regular fa-folder"></i><span>Resources</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="games"><i class="fa-solid fa-gamepad"></i><span>Peace games</span></button>
+
+        <p class="nav-label nav-label-spaced">Impact</p>
+        <button class="admin-nav-link" type="button" data-view-target="projects"><i class="fa-solid fa-seedling"></i><span>Projects</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="analytics"><i class="fa-solid fa-chart-line"></i><span>Analytics</span></button>
+      </nav>
+
+      <div class="sidebar-bottom">
+        <div class="sidebar-help">
+          <span class="help-icon"><i class="fa-regular fa-circle-question"></i></span>
+          <span><strong>Need a hand?</strong><small>Open the admin guide</small></span>
+          <i class="fa-solid fa-arrow-up-right-from-square"></i>
+        </div>
+        <div class="admin-profile">
+          <span class="profile-avatar" id="profileInitials">AM</span>
+          <span class="profile-copy"><strong id="profileName">Amina M.</strong><small>Programme admin</small></span>
+          <button type="button" class="profile-more" id="profileMenu" aria-label="Account options"><i class="fa-solid fa-ellipsis"></i></button>
+        </div>
+      </div>
+    </aside>
+
+    <div class="sidebar-backdrop" id="sidebarBackdrop"></div>
+
+    <main class="admin-main" id="adminContent">
+      <header class="admin-header">
+        <div class="header-main">
+          <button class="mobile-menu" type="button" id="mobileMenu" aria-label="Open menu"><i class="fa-solid fa-bars"></i></button>
+          <div class="header-breadcrumb"><span id="headerSection">Workspace</span><i class="fa-solid fa-chevron-right"></i><strong id="headerTitle">Overview</strong></div>
+        </div>
+        <div class="header-actions">
+          <label class="global-search" for="globalSearch"><i class="fa-solid fa-magnifying-glass"></i><input id="globalSearch" type="search" placeholder="Search workspace"></label>
+          <button class="header-icon-button notification-button" type="button" id="notificationsButton" aria-label="Notifications"><i class="fa-regular fa-bell"></i><span></span></button>
+          <button class="header-avatar" type="button" id="headerProfile" aria-label="Open account menu">AM</button>
+        </div>
+      </header>
+
+      <section class="admin-view is-active" data-view="overview" aria-labelledby="overviewHeading"></section>
+      <section class="admin-view" data-view="users" aria-labelledby="usersHeading"></section>
+      <section class="admin-view" data-view="applications" aria-labelledby="applicationsHeading"></section>
+      <section class="admin-view" data-view="content" aria-labelledby="contentHeading"></section>
+      <section class="admin-view" data-view="learning" aria-labelledby="learningHeading"></section>
+      <section class="admin-view" data-view="resources" aria-labelledby="resourcesHeading"></section>
+      <section class="admin-view" data-view="games" aria-labelledby="gamesHeading"></section>
+      <section class="admin-view" data-view="projects" aria-labelledby="projectsHeading"></section>
+      <section class="admin-view" data-view="analytics" aria-labelledby="analyticsHeading"></section>
+    </main>
+  </div>
+
+  <div class="admin-popover notifications-popover" id="notificationsPopover" hidden>
+    <div class="popover-heading"><strong>Notifications</strong><button class="text-button" type="button" data-action="mark-notifications">Mark all read</button></div>
+    <div class="notification-list" id="notificationList"></div>
+    <button class="popover-footer" type="button" data-view-target="applications">View all activity <i class="fa-solid fa-arrow-right"></i></button>
+  </div>
+
+  <div class="admin-popover profile-popover" id="profilePopover" hidden>
+    <button type="button" data-action="account-settings"><i class="fa-regular fa-user"></i> Account settings</button>
+    <button type="button" data-action="sign-out"><i class="fa-solid fa-arrow-right-from-bracket"></i> Sign out</button>
+  </div>
+
+  <div class="modal fade" id="adminModal" tabindex="-1" aria-labelledby="adminModalTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+      <div class="modal-content admin-modal-content">
+        <div class="modal-header">
+          <div><span class="modal-kicker" id="adminModalKicker">Manage workspace</span><h2 class="modal-title" id="adminModalTitle">Add item</h2></div>
+          <button type="button" class="modal-close" data-bs-dismiss="modal" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <form id="adminModalForm">
+          <div class="modal-body" id="adminModalBody"></div>
+          <div class="modal-footer">
+            <button type="button" class="btn-quiet" data-bs-dismiss="modal">Cancel</button>
+            <button type="submit" class="btn-admin-primary" id="adminModalSubmit">Save changes</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="admin-toast" id="adminToast" role="status" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/main.js"></script>
+  <script src="js/admin.js"></script>
+</body>
+</html>
