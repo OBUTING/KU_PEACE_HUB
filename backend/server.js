@@ -54,12 +54,98 @@ if (!ADMIN_KEY) {
   );
 }
 
-function requireAdmin(req, res, next) {
-  const providedKey = req.get("x-admin-key") || "";
-  if (!ADMIN_KEY || providedKey !== ADMIN_KEY) {
-    return res.status(401).json({ ok: false, error: "Admin access required." });
+const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || process.env.ADMIN_EMAIL || "obutindahoras18@gmail.com,obutindahoras19@gmail.com")
+  .split(",")
+  .map((value) => value.trim().toLowerCase())
+  .filter(Boolean);
+
+function isConfiguredAdminEmail(email) {
+  return typeof email === "string" && ADMIN_EMAILS.includes(email.trim().toLowerCase());
+}
+
+async function syncAdminRoleForEmail(userId, email) {
+  if (!userId || !isConfiguredAdminEmail(email)) return null;
+  await pool.query(`UPDATE users SET role = 'admin' WHERE id = $1 AND role <> 'admin'`, [userId]);
+  return "admin";
+}
+
+const sessionTokens = new Map();
+
+function createAuthToken(userId) {
+  const token = crypto.randomBytes(24).toString("hex");
+  sessionTokens.set(token, userId);
+  return token;
+}
+
+async function getUserById(userId) {
+  if (!userId) return null;
+  const { rows } = await pool.query(
+    `SELECT id, name, email, role, status FROM users WHERE id = $1`,
+    [userId]
+  );
+  return rows[0] || null;
+}
+
+function getAuthToken(req) {
+  const authHeader = req.get("authorization") || "";
+  if (authHeader.startsWith("Bearer ")) {
+    return authHeader.slice(7).trim();
   }
-  next();
+  return req.get("x-auth-token") || "";
+}
+
+async function requireAuth(req, res, next) {
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: "Authentication required." });
+  }
+
+  const userId = sessionTokens.get(token);
+  if (!userId) {
+    return res.status(401).json({ ok: false, error: "Authentication required." });
+  }
+
+  try {
+    const user = await getUserById(userId);
+    if (!user) {
+      return res.status(401).json({ ok: false, error: "Authentication required." });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not verify your session." });
+  }
+}
+
+async function requireAdmin(req, res, next) {
+  const providedKey = req.get("x-admin-key") || "";
+  if (ADMIN_KEY && providedKey === ADMIN_KEY) {
+    req.user = { role: "admin" };
+    return next();
+  }
+
+  const token = getAuthToken(req);
+  if (!token) {
+    return res.status(401).json({ ok: false, error: "Authentication required." });
+  }
+
+  const userId = sessionTokens.get(token);
+  if (!userId) {
+    return res.status(401).json({ ok: false, error: "Authentication required." });
+  }
+
+  try {
+    const user = await getUserById(userId);
+    if (!user || user.role !== "admin") {
+      return res.status(403).json({ ok: false, error: "Admin access required." });
+    }
+    req.user = user;
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not verify your admin session." });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1098,15 +1184,20 @@ app.post("/api/auth/signup", async (req, res) => {
       name: (name || "").toString().trim().slice(0, 80),
       email: email.trim(),
       passwordHash: bcrypt.hashSync(password, 10),
+      role: isConfiguredAdminEmail(email.trim()) ? "admin" : "member",
     };
 
     await pool.query(
-      `INSERT INTO users (id, name, email, password_hash) VALUES ($1, $2, $3, $4)`,
-      [user.id, user.name, user.email, user.passwordHash]
+      `INSERT INTO users (id, name, email, password_hash, role) VALUES ($1, $2, $3, $4, $5)`,
+      [user.id, user.name, user.email, user.passwordHash, user.role]
     );
 
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString("base64");
-    res.status(201).json({ ok: true, token, user: { id: user.id, name: user.name, email: user.email } });
+    const token = createAuthToken(user.id);
+    res.status(201).json({
+      ok: true,
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role: user.role },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not create your account. Please try again." });
@@ -1126,8 +1217,13 @@ app.post("/api/auth/login", async (req, res) => {
       return res.status(401).json({ ok: false, error: "Incorrect email or password." });
     }
 
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString("base64");
-    res.json({ ok: true, token, user: { id: user.id, name: user.name, email: user.email } });
+    const role = (await syncAdminRoleForEmail(user.id, user.email)) || user.role || "member";
+    const token = createAuthToken(user.id);
+    res.json({
+      ok: true,
+      token,
+      user: { id: user.id, name: user.name, email: user.email, role },
+    });
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not log you in. Please try again." });
@@ -1164,10 +1260,11 @@ app.post("/api/auth/google", async (req, res) => {
 
     if (!user) {
       const id = crypto.randomUUID();
+      const role = isConfiguredAdminEmail(email) ? "admin" : "member";
       const inserted = await pool.query(
-        `INSERT INTO users (id, name, email, google_id) VALUES ($1, $2, $3, $4)
-         RETURNING id, name, email`,
-        [id, name, email, googleId]
+        `INSERT INTO users (id, name, email, google_id, role) VALUES ($1, $2, $3, $4, $5)
+         RETURNING id, name, email, role`,
+        [id, name, email, googleId, role]
       );
       user = inserted.rows[0];
     } else if (!user.google_id) {
@@ -1176,12 +1273,29 @@ app.post("/api/auth/google", async (req, res) => {
       await pool.query(`UPDATE users SET google_id = $1 WHERE id = $2`, [googleId, user.id]);
     }
 
-    const token = Buffer.from(`${user.id}:${Date.now()}`).toString("base64");
-    res.json({ ok: true, token, user: { id: user.id, name: user.name || name, email: user.email } });
+    const role = (await syncAdminRoleForEmail(user.id, user.email)) || user.role || "member";
+    const token = createAuthToken(user.id);
+    res.json({
+      ok: true,
+      token,
+      user: { id: user.id, name: user.name || name, email: user.email, role },
+    });
   } catch (err) {
     console.error(err);
     res.status(401).json({ ok: false, error: "Could not verify your Google sign-in. Please try again." });
   }
+});
+
+app.get("/api/auth/me", requireAuth, (req, res) => {
+  res.json({
+    ok: true,
+    user: {
+      id: req.user.id,
+      name: req.user.name,
+      email: req.user.email,
+      role: req.user.role || "member",
+    },
+  });
 });
 
 // ---------------------------------------------------------------------------

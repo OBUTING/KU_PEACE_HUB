@@ -33,8 +33,32 @@
     el.textContent = new Date().getFullYear();
   });
 
-  // ---- Logged-in navbar state (shows on every page once a session exists) ----
-  function refreshAuthUI() {
+  function setAdminNavLinkVisible(isVisible) {
+    const navbar = document.querySelector(".cg-navbar");
+    if (!navbar) return;
+
+    let adminLi = navbar.querySelector(".nav-admin-link-item");
+    if (!adminLi) {
+      adminLi = document.createElement("li");
+      adminLi.className = "nav-item nav-admin-link-item";
+      adminLi.hidden = true;
+      const adminLink = document.createElement("a");
+      adminLink.className = "nav-link";
+      adminLink.href = "admin.html";
+      adminLink.textContent = "Admin";
+      adminLi.appendChild(adminLink);
+      const loginItem = navbar.querySelector(".nav-item:last-child");
+      if (loginItem) {
+        loginItem.after(adminLi);
+      } else {
+        navbar.querySelector(".navbar-nav").appendChild(adminLi);
+      }
+    }
+
+    adminLi.hidden = !isVisible;
+  }
+
+  async function refreshAuthUI() {
     let user = null;
     try {
       const raw = localStorage.getItem("cg_user");
@@ -42,6 +66,31 @@
     } catch (err) {
       /* corrupted/unavailable storage — treat as logged out */
     }
+
+    const token = localStorage.getItem("cg_token");
+    if (!token) {
+      setAdminNavLinkVisible(false);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/auth/me", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok && data.user) {
+        localStorage.setItem("cg_user", JSON.stringify(data.user));
+        user = data.user;
+      } else {
+        localStorage.removeItem("cg_token");
+        localStorage.removeItem("cg_user");
+        setAdminNavLinkVisible(false);
+        user = null;
+      }
+    } catch (err) {
+      /* leave the current local session intact for the page load */
+    }
+
     if (!user) return;
 
     const navCta = document.querySelector(".cg-navbar .nav-cta");
@@ -72,7 +121,30 @@
     });
     logoutLi.appendChild(logoutBtn);
     listItem.after(logoutLi);
+
+    setAdminNavLinkVisible(user.role === "admin");
   }
+
+  if (document.body.classList.contains("admin-body")) {
+    const adminToken = localStorage.getItem("cg_token");
+    if (!adminToken) {
+      window.location.href = "index.html";
+    } else {
+      fetch("/api/auth/me", {
+        headers: { Authorization: `Bearer ${adminToken}` },
+      })
+        .then((res) => res.json().catch(() => ({})))
+        .then((data) => {
+          if (!data.ok || data.user?.role !== "admin") {
+            window.location.href = "index.html";
+          }
+        })
+        .catch(() => {
+          window.location.href = "index.html";
+        });
+    }
+  }
+
   refreshAuthUI();
 
   // ---- Toast helper, available globally as window.cgToast ----
