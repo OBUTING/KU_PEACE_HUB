@@ -462,7 +462,7 @@
     if (entity === "applications") return `<div class="row g-3">${input("fullName", "Applicant name", "text", "required")}${input("email", "Email address", "email", "required")}${input("county", "County")}${select("availability", "Availability", ["Flexible", "Weekends", "Weekdays", "Mornings", "Afternoons", "Evenings"])}${textarea("interests", "Peacebuilding interests", "What do they hope to contribute?")}${select("status", "Review status", ["New", "Reviewing", "Approved", "Declined"])}${input("submittedAt", "Submission date", "date")}</div>`;
     if (entity === "content") return `<div class="row g-3">${input("title", "Headline", "text", "required")}${select("type", "Content type", ["News", "Event"])}${input("date", "Publish or event date", "date", "required")}${select("status", "Publication status", ["Draft", "Published"])}${textarea("excerpt", "Short summary", "What should the community know?")}${input("author", "Author", "text", `placeholder="${escapeAttr(getAdminName())}"`)}</div>`;
     if (entity === "materials") return `<div class="row g-3">${input("title", "Material title", "text", "required")}${select("type", "Material type", ["Course", "Video lesson", "Audio lesson", "Guide"])}${input("category", "Learning category", "text", "required")}${input("duration", "Estimated duration", "text", "placeholder=\"e.g. 45 min\"")}${input("instructor", "Facilitator / author")}${select("status", "Publication status", ["Draft", "Published"])}${input("learners", "Current learners", "number", "min=0")}<div class="col-12"><label class="form-label">Upload learning file <span class="text-muted fw-normal">(optional)</span></label><label class="file-drop" for="materialFile"><span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a course file or learning asset</b><small>Attach a PDF, slide deck, audio or video file to this material</small></span><input id="materialFile" name="materialFile" type="file"></label><p class="form-note">The dashboard records the selected file details. Connect managed file storage before publishing uploaded files publicly.</p></div></div>`;
-    if (entity === "resources") return `<div class="row g-3">${input("title", "Resource title", "text", "required")}${input("category", "Category", "text", "required")}${select("status", "Publication status", ["Draft", "Published"])}${input("downloads", "Current downloads", "number", "min=0")}${textarea("description", "What is this resource for?", "Briefly explain how people can use it.")}<div class="col-12"><label class="form-label">Attach a file <span class="text-muted fw-normal">(optional)</span></label><label class="file-drop" for="resourceFile"><span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a new file to attach</b><small>PDF, DOCX, ZIP, PPTX and similar files are supported</small></span><input id="resourceFile" name="resourceFile" type="file"></label><p class="form-note">The dashboard will save the file name and size; connect a storage service before using uploads in production.</p></div></div>`;
+    if (entity === "resources") return `<div class="row g-3">${input("title", "Resource title", "text", "required")}${input("category", "Category", "text", "required")}${select("status", "Publication status", ["Draft", "Published"])}${input("downloads", "Current downloads", "number", "min=0")}${textarea("description", "What is this resource for?", "Briefly explain how people can use it.")}<div class="col-12"><label class="form-label">Attach a file <span class="text-muted fw-normal">(optional)</span></label><label class="file-drop" for="resourceFile"><span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a new file to attach</b><small>PDF, DOCX, ZIP, PPTX and similar files are supported</small></span><input id="resourceFile" name="resourceFile" type="file"></label><p class="form-note">Requires a connected admin key (see the profile menu) — the file uploads for real and becomes downloadable on the public site once published.</p></div></div>`;
     if (entity === "games") return `<div class="row g-3">${input("title", "Game title", "text", "required")}${input("audience", "Audience", "text", "placeholder=\"e.g. 13–25 years\"")}${select("status", "Publication status", ["Draft", "Published"])}${input("plays", "Current plays", "number", "min=0")}${textarea("description", "Game description", "How does this game help people practise peacebuilding?")}</div>`;
     if (entity === "projects") return `<div class="row g-3">${input("title", "Project name", "text", "required")}${input("owner", "Project lead", "text", "required")}${input("dueDate", "Target date", "date")}${select("status", "Project status", ["Planning", "On track", "Paused", "Complete"])}<div class="col-md-6"><label class="form-label" for="field-progress">Overall progress <span id="progressValue">${Number(item.progress || 0)}%</span></label><input class="form-range" id="field-progress" name="progress" type="range" min="0" max="100" value="${Number(item.progress || 0)}"></div>${textarea("description", "Project description", "What is the project moving toward?")}</div>`;
     return "";
@@ -562,8 +562,53 @@
     persist();
     renderActiveView();
     if (modalInstance) modalInstance.hide();
-    syncEntity(entity, item, Boolean(id));
+    if (entity === "resources") {
+      const file = modalForm.querySelector("input[name=resourceFile]")?.files?.[0] || null;
+      syncResourceWithFile(item, file, Boolean(id));
+    } else {
+      syncEntity(entity, item, Boolean(id));
+    }
     showToast(`${id ? "Saved" : "Added"} ${entityNames[entity] || "item"}.`);
+  }
+
+  // Resources get their own sync path (rather than the generic JSON
+  // syncEntity used by every other entity) because an attached file needs
+  // to travel as multipart/form-data, not JSON — the file's actual bytes,
+  // not just its name and size, so real downloads work on the public site.
+  async function syncResourceWithFile(item, file, isUpdate) {
+    const adminKey = localStorage.getItem(ADMIN_KEY_STORAGE);
+    if (!adminKey) return;
+
+    const formData = new FormData();
+    formData.append("title", item.title || "");
+    formData.append("description", item.description || "");
+    formData.append("category", item.category || "");
+    formData.append("status", String(item.status || "Draft").toLowerCase());
+    if (file) formData.append("file", file);
+
+    const url = isUpdate ? `/api/admin/resources/${encodeURIComponent(item.id)}` : "/api/admin/resources";
+
+    try {
+      const response = await fetch(url, {
+        method: isUpdate ? "PATCH" : "POST",
+        headers: { "x-admin-key": adminKey },
+        body: formData,
+      });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const serverItem = payload?.item || payload?.data;
+      if (!serverItem) return;
+
+      const collection = entityItems("resources");
+      const index = Array.isArray(collection) ? collection.findIndex((c) => String(c.id) === String(item.id)) : -1;
+      if (index > -1) {
+        collection[index] = { ...collection[index], ...normaliseServerItem(serverItem, "resources") };
+        persist();
+        renderActiveView();
+      }
+    } catch (err) {
+      // Local preview still stands even if the live sync failed.
+    }
   }
 
   function readableBytes(bytes) {
