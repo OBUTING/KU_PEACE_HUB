@@ -10,6 +10,7 @@
 
   const STORAGE_KEY = "cg_admin_dashboard_v1";
   const ADMIN_KEY_STORAGE = "cg_admin_key";
+  const GALLERY_KEY_STORAGE = "peacehub_admin_key";
   const viewNames = {
     overview: "Overview",
     users: "People",
@@ -19,6 +20,7 @@
     quizzes: "Quizzes",
     learning: "Learning hub",
     resources: "Resources",
+    gallery: "Gallery",
     games: "Peace games",
     projects: "Projects",
     initiatives: "Initiatives map",
@@ -219,6 +221,32 @@
 
   function typePill(type) {
     return `<span class="type-pill">${escapeHtml(type || "Item")}</span>`;
+  }
+
+  function getGalleryAdminKey() {
+    return (sessionStorage.getItem(GALLERY_KEY_STORAGE) || localStorage.getItem(ADMIN_KEY_STORAGE) || "").trim();
+  }
+
+  function setGalleryAdminKey(key) {
+    const value = String(key || "").trim();
+    sessionStorage.setItem(GALLERY_KEY_STORAGE, value);
+    localStorage.setItem(ADMIN_KEY_STORAGE, value);
+  }
+
+  function formatGalleryDate(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
+  }
+
+  function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result.split(",")[1]);
+      reader.onerror = () => reject(new Error("Could not read file."));
+      reader.readAsDataURL(file);
+    });
   }
 
   function setHtml(view, markup) {
@@ -450,6 +478,185 @@
       }).join("") : '<div class="empty-state"><i class="fa-solid fa-circle-question"></i><p>No quizzes match the filters.</p></div>'}</div></article>`);
   }
 
+  function renderGallery() {
+    const key = getGalleryAdminKey();
+    setHtml("gallery", `${headerMarkup("Media", "Gallery", "Upload and manage the photos shown on the public peace hub pages.", "")}
+      <article class="management-card">
+        <div class="gallery-manager">
+          <div class="gallery-toolbar">
+            <div class="gallery-key-bar">
+              <input class="form-control" id="galleryAdminKey" type="password" value="${escapeAttr(key)}" placeholder="Admin key">
+              <button class="btn-admin-outline" id="gallerySaveKeyBtn" type="button">Save key</button>
+            </div>
+            <span class="gallery-status" id="galleryStatus">Loading photos…</span>
+          </div>
+          <form id="galleryUploadForm" class="gallery-upload-form">
+            <div class="row g-3">
+              <div class="col-md-8">
+                <label class="form-label" for="galleryFileInput">Photo</label>
+                <label class="file-drop" for="galleryFileInput">
+                  <span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a photo to upload</b><small>PNG, JPG, WEBP and similar images are supported</small></span>
+                  <input id="galleryFileInput" name="galleryFile" type="file" accept="image/*" required>
+                </label>
+              </div>
+              <div class="col-md-4">
+                <label class="form-label" for="galleryCaptionInput">Caption</label>
+                <input class="form-control" id="galleryCaptionInput" name="caption" type="text" placeholder="e.g. Peace walk, July 2026">
+              </div>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+              <button class="btn-admin-primary" id="galleryUploadBtn" type="submit">Upload photo</button>
+              <span id="galleryUploadMessage" class="gallery-status"></span>
+            </div>
+          </form>
+          <div id="galleryGrid" class="photo-grid"></div>
+        </div>
+      </article>`);
+
+    const keyInput = document.getElementById("galleryAdminKey");
+    const saveKeyBtn = document.getElementById("gallerySaveKeyBtn");
+    const uploadForm = document.getElementById("galleryUploadForm");
+    const fileInput = document.getElementById("galleryFileInput");
+    const captionInput = document.getElementById("galleryCaptionInput");
+    const uploadBtn = document.getElementById("galleryUploadBtn");
+    const uploadMessage = document.getElementById("galleryUploadMessage");
+    const grid = document.getElementById("galleryGrid");
+    const status = document.getElementById("galleryStatus");
+
+    if (!keyInput || !uploadForm || !grid || !status) return;
+
+    const setKey = (key) => {
+      setGalleryAdminKey(key);
+      keyInput.value = getGalleryAdminKey();
+    };
+
+    saveKeyBtn?.addEventListener("click", () => {
+      setKey(keyInput.value);
+      status.textContent = "Key saved.";
+      reloadGallery();
+    });
+
+    async function reloadGallery() {
+      grid.innerHTML = "";
+      status.textContent = "Loading photos…";
+
+      try {
+        const res = await fetch("/api/gallery");
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+
+        if (!data.images || data.images.length === 0) {
+          status.textContent = "No photos yet — upload the first one above.";
+          grid.innerHTML = '<div class="gallery-empty-state">No images are available yet.</div>';
+          return;
+        }
+
+        status.textContent = `${data.images.length} photo${data.images.length === 1 ? "" : "s"} available.`;
+        data.images.forEach((photo) => {
+          const card = document.createElement("div");
+          card.className = "photo-card";
+
+          const img = document.createElement("img");
+          img.src = `/api/gallery/${photo.id}/image`;
+          img.alt = photo.caption || photo.filename;
+          img.loading = "lazy";
+          card.appendChild(img);
+
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "photo-remove-btn";
+          removeBtn.textContent = "Delete";
+          removeBtn.type = "button";
+          removeBtn.addEventListener("click", () => deletePhoto(photo.id));
+          card.appendChild(removeBtn);
+
+          const caption = document.createElement("div");
+          caption.className = "photo-caption";
+          caption.innerHTML = `${photo.caption ? `${escapeHtml(photo.caption)}<br>` : ""}<span class="photo-date">${escapeHtml(formatGalleryDate(photo.createdAt))}</span>`;
+          card.appendChild(caption);
+
+          grid.appendChild(card);
+        });
+      } catch (err) {
+        console.error(err);
+        status.textContent = "Could not load the gallery right now.";
+        grid.innerHTML = '<div class="gallery-empty-state">The gallery could not be loaded.</div>';
+      }
+    }
+
+    async function deletePhoto(id) {
+      const key = getGalleryAdminKey();
+      if (!key) {
+        uploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+      if (!window.confirm("Delete this photo? This cannot be undone.")) return;
+
+      try {
+        const res = await fetch(`/api/gallery/${id}`, {
+          method: "DELETE",
+          headers: { "x-admin-key": key },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Delete failed.");
+        uploadMessage.textContent = "Photo deleted.";
+        reloadGallery();
+      } catch (err) {
+        uploadMessage.textContent = err.message;
+      }
+    }
+
+    uploadForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const key = getGalleryAdminKey();
+      if (!key) {
+        uploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        uploadMessage.textContent = "Choose a photo to upload.";
+        return;
+      }
+      if (file.size > 5 * 1024 * 1024) {
+        uploadMessage.textContent = "File is too large (max 5MB).";
+        return;
+      }
+
+      uploadBtn.disabled = true;
+      uploadMessage.textContent = "Uploading…";
+
+      try {
+        const dataBase64 = await fileToBase64(file);
+        const res = await fetch("/api/gallery", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-admin-key": key,
+          },
+          body: JSON.stringify({
+            filename: file.name,
+            mimeType: file.type,
+            caption: captionInput.value.trim(),
+            dataBase64,
+          }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Upload failed.");
+
+        uploadMessage.textContent = "Uploaded!";
+        uploadForm.reset();
+        reloadGallery();
+      } catch (err) {
+        uploadMessage.textContent = err.message;
+      } finally {
+        uploadBtn.disabled = false;
+      }
+    });
+
+    reloadGallery();
+  }
+
   function renderInitiatives() {
     const rows = filtered("initiatives", state.initiatives, (item) => `${item.title} ${item.category} ${item.county} ${item.status}`);
     const actions = `${adminButton("Add initiative", "new", "initiatives")}`;
@@ -471,7 +678,7 @@
   }
 
   function renderActiveView() {
-    const renderers = { overview: renderOverview, users: renderUsers, applications: renderApplications, content: renderContent, registrations: renderRegistrations, learning: renderLearning, quizzes: renderQuizzes, resources: renderResources, games: renderGames, projects: renderProjects, initiatives: renderInitiatives, analytics: renderAnalytics };
+    const renderers = { overview: renderOverview, users: renderUsers, applications: renderApplications, content: renderContent, registrations: renderRegistrations, learning: renderLearning, quizzes: renderQuizzes, resources: renderResources, gallery: renderGallery, games: renderGames, projects: renderProjects, initiatives: renderInitiatives, analytics: renderAnalytics };
     renderers[activeView]();
     document.getElementById("headerTitle").textContent = viewNames[activeView] || "Overview";
   }
