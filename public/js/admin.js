@@ -15,10 +15,13 @@
     users: "People",
     applications: "Applications",
     content: "News & events",
+    registrations: "Events & registration",
+    quizzes: "Quizzes",
     learning: "Learning hub",
     resources: "Resources",
     games: "Peace games",
     projects: "Projects",
+    initiatives: "Initiatives map",
     analytics: "Analytics",
   };
 
@@ -26,19 +29,25 @@
     users: "person",
     applications: "application",
     content: "update",
+    registrations: "registration",
     materials: "learning material",
+    quizzes: "quiz",
     resources: "resource",
     games: "peace game",
     projects: "project",
+    initiatives: "initiative",
   };
 
   const endpointByEntity = {
     applications: "volunteers",
     content: "content",
+    registrations: "registrations",
     materials: "materials",
+    quizzes: "quizzes",
     resources: "resources",
     games: "games",
     projects: "projects",
+    initiatives: "initiatives",
   };
 
   const defaultState = {
@@ -91,6 +100,20 @@
       { id: "p-2", title: "Peer mediator cohort", description: "Training and mentoring a new cohort of student peer mediators.", owner: "Brian M.", dueDate: "2026-09-15", progress: 48, status: "On track", updated: "Yesterday" },
       { id: "p-3", title: "County dialogue series", description: "A travelling dialogue series designed with youth organisers in five counties.", owner: "Faith M.", dueDate: "2026-10-10", progress: 29, status: "Planning", updated: "3 days ago" },
       { id: "p-4", title: "Digital peace library", description: "A plain-language library of ready-to-use learning resources and activity guides.", owner: "Jamal O.", dueDate: "2026-08-12", progress: 86, status: "On track", updated: "Today" },
+    ],
+    registrations: [
+      { id: "r-1", fullName: "Njoki Kamau", email: "njoki.kamau@gmail.com", phone: "0712 345 678", eventTitle: "Students Speak Up: A dialogue on campus", notes: "Bringing two friends", status: "Confirmed", submittedAt: "2026-07-24" },
+      { id: "r-2", fullName: "Peter Odhiambo", email: "peter.odhiambo@gmail.com", phone: "0722 111 222", eventTitle: "Peace Tree planting day", notes: "", status: "Pending", submittedAt: "2026-07-23" },
+      { id: "r-3", fullName: "Grace Wanjiru", email: "grace.wanjiru@gmail.com", phone: "0733 444 555", eventTitle: "Students Speak Up: A dialogue on campus", notes: "Needs a wheelchair-accessible seat", status: "Pending", submittedAt: "2026-07-22" },
+    ],
+    quizzes: [
+      { id: "q-1", title: "Peacebuilding foundations check", category: "Core course", description: "A short check-in after the foundations course.", status: "Published", questionsText: "What is the first step in de-escalating a conflict? | Listen first;Raise your voice;Walk away;Assign blame | 1\nWhich of these describes structural peace? | Fair systems and access;Quiet streets;Winning an argument;Avoiding people | 1" },
+      { id: "q-2", title: "Facilitation basics", category: "Facilitation", description: "Checks understanding of running a respectful dialogue circle.", status: "Draft", questionsText: "" },
+    ],
+    initiatives: [
+      { id: "i-1", title: "KU Peace Club — Main Campus", description: "Weekly peer dialogue circle open to all students.", category: "Peace club", county: "Nairobi", latitude: -1.1815, longitude: 36.9284, status: "Published" },
+      { id: "i-2", title: "Peace Tree planting site", description: "Shared campus landmark that gathers community commitments.", category: "Peace Tree project", county: "Nairobi", latitude: -1.1804, longitude: 36.9273, status: "Published" },
+      { id: "i-3", title: "County dialogue series — Kisumu leg", description: "Travelling dialogue series stop for youth organisers.", category: "Dialogue series", county: "Kisumu", latitude: -0.0917, longitude: 34.7679, status: "Draft" },
     ],
     activity: [
       { initials: "AK", name: "Achieng Kariuki", action: "submitted a volunteer application", time: "8m" },
@@ -329,7 +352,7 @@
   function tableToolbar(view, totalLabel, hasStatus = true) {
     const query = escapeAttr(filters[`${view}-query`] || "");
     const status = filters[`${view}-status`] || "All";
-    const statuses = ["All", "Active", "Pending", "Inactive", "New", "Reviewing", "Approved", "Declined", "Published", "Draft", "On track", "Planning"];
+    const statuses = ["All", "Active", "Pending", "Inactive", "New", "Reviewing", "Approved", "Declined", "Confirmed", "Attended", "Cancelled", "Published", "Draft", "On track", "Planning"];
     return `<div class="management-toolbar"><div class="toolbar-left"><span class="toolbar-meta" data-total="${view}">${escapeHtml(totalLabel)}</span></div><div class="toolbar-right"><label class="table-search"><i class="fa-solid fa-magnifying-glass"></i><input type="search" data-filter-query="${view}" value="${query}" placeholder="Search"></label>${hasStatus ? `<select class="filter-select" data-filter-status="${view}">${statuses.map((option) => `<option ${option === status ? "selected" : ""}>${option}</option>`).join("")}</select>` : ""}</div></div>`;
   }
 
@@ -391,6 +414,49 @@
       <div class="projects-grid">${rows.length ? rows.map((item) => `<article class="project-card"><div class="project-card-top"><div class="project-card-heading"><span class="project-card-icon"><i class="fa-solid fa-seedling"></i></span><h2>${escapeHtml(item.title)}<small>Led by ${escapeHtml(item.owner || "Peace Hub")}</small></h2></div><button class="table-action" type="button" data-action="edit" data-entity="projects" data-id="${escapeAttr(item.id)}" aria-label="Edit ${escapeAttr(item.title)}"><i class="fa-solid fa-ellipsis"></i></button></div><p>${escapeHtml(item.description)}</p><div class="project-detail-row"><span>Overall progress</span><strong>${Math.max(0, Math.min(100, Number(item.progress) || 0))}%</strong></div><div class="project-progress"><span style="width:${Math.max(0, Math.min(100, Number(item.progress) || 0))}%"></span></div><div class="project-foot">${statusPill(item.status)}<span>Due ${formatDate(item.dueDate, { month: "short", day: "numeric" })}</span></div></article>`).join("") : '<div class="empty-state"><i class="fa-solid fa-seedling"></i><p>No projects match the filters.</p></div>'}</div>`);
   }
 
+  function renderRegistrations() {
+    const rows = filtered("registrations", state.registrations, (item) => `${item.fullName} ${item.email} ${item.eventTitle} ${item.status}`);
+    const actions = `${adminButton("Add registration", "new", "registrations")}`;
+    setHtml("registrations", `${headerMarkup("Events", "Events & registration", "See who has signed up for each event and confirm or follow up.", actions)}
+      <article class="management-card">${tableToolbar("registrations", `${state.registrations.length} registrations`)}<div class="table-wrap"><table class="admin-table"><thead><tr><th>Attendee</th><th>Event</th><th>Contact</th><th>Registered</th><th>Status</th><th aria-label="Actions"></th></tr></thead><tbody>${rows.length ? rows.map((item, index) => `<tr><td><div class="row-primary"><span class="table-avatar ${index % 3 === 1 ? "alt" : index % 3 === 2 ? "gold" : ""}">${initials(item.fullName)}</span><span>${escapeHtml(item.fullName)}</span></div></td><td>${escapeHtml(item.eventTitle || "—")}</td><td>${escapeHtml(item.email || "—")}<small class="table-sub">${escapeHtml(item.phone || "")}</small></td><td><span class="mono-date">${formatDate(item.submittedAt, { month: "short", day: "numeric", year: "numeric" })}</span></td><td>${statusPill(item.status)}</td><td><button class="table-action" type="button" data-action="edit" data-entity="registrations" data-id="${escapeAttr(item.id)}" aria-label="Edit ${escapeAttr(item.fullName)}"><i class="fa-solid fa-ellipsis"></i></button></td></tr>`).join("") : tableEmpty("No registrations match the filters.")}</tbody></table></div></article>`);
+  }
+
+  function parseQuestionsText(text) {
+    return String(text || "")
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean)
+      .map((line) => {
+        const [question = "", optionsPart = "", indexPart = ""] = line.split("|").map((part) => part.trim());
+        const options = optionsPart.split(";").map((option) => option.trim()).filter(Boolean);
+        const correctIndex = Math.max(0, (Number.parseInt(indexPart, 10) || 1) - 1);
+        return { question, options, correctIndex };
+      })
+      .filter((item) => item.question && item.options.length >= 2);
+  }
+
+  function questionsToText(questions) {
+    if (!Array.isArray(questions) || !questions.length) return "";
+    return questions.map((item) => `${item.question} | ${(item.options || []).join(";")} | ${Number(item.correctIndex || 0) + 1}`).join("\n");
+  }
+
+  function renderQuizzes() {
+    const rows = filtered("quizzes", state.quizzes, (item) => `${item.title} ${item.category} ${item.description} ${item.status}`);
+    const actions = `${adminButton("Create quiz", "new", "quizzes")}`;
+    setHtml("quizzes", `${headerMarkup("Learning", "Quizzes", "Check understanding after a course, workshop, or event.", actions)}
+      <article class="management-card">${tableToolbar("quizzes", `${state.quizzes.length} quizzes`)}<div class="content-grid p-3">${rows.length ? rows.map((item) => {
+        const count = (item.questions && item.questions.length) || parseQuestionsText(item.questionsText).length;
+        return `<article class="content-card"><button class="table-action content-card-menu" type="button" data-action="edit" data-entity="quizzes" data-id="${escapeAttr(item.id)}" aria-label="Edit ${escapeAttr(item.title)}"><i class="fa-solid fa-ellipsis"></i></button><span class="content-card-icon"><i class="fa-solid fa-circle-question"></i></span><h3>${escapeHtml(item.title)}</h3><p>${escapeHtml(item.description || "No description yet.")}</p><div class="content-card-meta"><span>${escapeHtml(item.category || "General")}</span><span>${count} question${count === 1 ? "" : "s"}</span></div><div class="d-flex align-items-center justify-content-between mt-3">${statusPill(item.status)}${item.status === "Draft" ? `<button class="text-button" type="button" data-action="publish" data-entity="quizzes" data-id="${escapeAttr(item.id)}">Publish</button>` : ""}</div></article>`;
+      }).join("") : '<div class="empty-state"><i class="fa-solid fa-circle-question"></i><p>No quizzes match the filters.</p></div>'}</div></article>`);
+  }
+
+  function renderInitiatives() {
+    const rows = filtered("initiatives", state.initiatives, (item) => `${item.title} ${item.category} ${item.county} ${item.status}`);
+    const actions = `${adminButton("Add initiative", "new", "initiatives")}`;
+    setHtml("initiatives", `${headerMarkup("Impact", "Initiatives map", "Plot peace clubs, projects, and events so the community can find them nearby.", actions)}
+      <article class="management-card">${tableToolbar("initiatives", `${state.initiatives.length} initiatives`)}<div class="table-wrap"><table class="admin-table"><thead><tr><th>Initiative</th><th>Category</th><th>County</th><th>Coordinates</th><th>Status</th><th aria-label="Actions"></th></tr></thead><tbody>${rows.length ? rows.map((item, index) => `<tr><td><div class="row-primary"><span class="table-avatar ${index % 3 === 1 ? "alt" : index % 3 === 2 ? "gold" : ""}"><i class="fa-solid fa-map-pin"></i></span><span>${escapeHtml(item.title)}<small class="table-sub">${escapeHtml(item.description || "No description")}</small></span></div></td><td>${typePill(item.category || "Initiative")}</td><td>${escapeHtml(item.county || "—")}</td><td><span class="mono-date">${item.latitude != null && item.latitude !== "" ? `${Number(item.latitude).toFixed(4)}, ${Number(item.longitude).toFixed(4)}` : "Not set"}</span></td><td>${statusPill(item.status)}</td><td><button class="table-action" type="button" data-action="edit" data-entity="initiatives" data-id="${escapeAttr(item.id)}" aria-label="Edit ${escapeAttr(item.title)}"><i class="fa-solid fa-ellipsis"></i></button></td></tr>`).join("") : tableEmpty("No initiatives match the filters.")}</tbody></table></div></article>`);
+  }
+
   function renderAnalytics() {
     const completionRate = Math.round((Number(state.metrics.completions || 0) / Math.max(1, Number(state.metrics.registrations || 1))) * 100);
     setHtml("analytics", `${headerMarkup("Impact", "Analytics", "See where people are arriving, learning, and taking part in the work.", '<button class="btn-admin-outline" type="button" data-action="export" data-entity="analytics"><i class="fa-solid fa-arrow-down"></i>Export report</button>')}
@@ -405,7 +471,7 @@
   }
 
   function renderActiveView() {
-    const renderers = { overview: renderOverview, users: renderUsers, applications: renderApplications, content: renderContent, learning: renderLearning, resources: renderResources, games: renderGames, projects: renderProjects, analytics: renderAnalytics };
+    const renderers = { overview: renderOverview, users: renderUsers, applications: renderApplications, content: renderContent, registrations: renderRegistrations, learning: renderLearning, quizzes: renderQuizzes, resources: renderResources, games: renderGames, projects: renderProjects, initiatives: renderInitiatives, analytics: renderAnalytics };
     renderers[activeView]();
     document.getElementById("headerTitle").textContent = viewNames[activeView] || "Overview";
   }
@@ -423,8 +489,10 @@
   function updateNavCounts() {
     const users = document.querySelector('[data-count="users"]');
     const applications = document.querySelector('[data-count="applications"]');
+    const registrations = document.querySelector('[data-count="registrations"]');
     if (users) users.textContent = metricNumber(state.metrics.community || state.users.length);
     if (applications) applications.textContent = state.applications.filter((item) => ["New", "Reviewing"].includes(item.status)).length;
+    if (registrations) registrations.textContent = state.registrations.filter((item) => item.status === "Pending").length;
   }
 
   function getAdminName() {
@@ -465,6 +533,9 @@
     if (entity === "resources") return `<div class="row g-3">${input("title", "Resource title", "text", "required")}${input("category", "Category", "text", "required")}${select("status", "Publication status", ["Draft", "Published"])}${input("downloads", "Current downloads", "number", "min=0")}${textarea("description", "What is this resource for?", "Briefly explain how people can use it.")}<div class="col-12"><label class="form-label">Attach a file <span class="text-muted fw-normal">(optional)</span></label><label class="file-drop" for="resourceFile"><span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a new file to attach</b><small>PDF, DOCX, ZIP, PPTX and similar files are supported</small></span><input id="resourceFile" name="resourceFile" type="file"></label><p class="form-note">Requires a connected admin key (see the profile menu) — the file uploads for real and becomes downloadable on the public site once published.</p></div></div>`;
     if (entity === "games") return `<div class="row g-3">${input("title", "Game title", "text", "required")}${input("audience", "Audience", "text", "placeholder=\"e.g. 13–25 years\"")}${select("status", "Publication status", ["Draft", "Published"])}${input("plays", "Current plays", "number", "min=0")}${textarea("description", "Game description", "How does this game help people practise peacebuilding?")}</div>`;
     if (entity === "projects") return `<div class="row g-3">${input("title", "Project name", "text", "required")}${input("owner", "Project lead", "text", "required")}${input("dueDate", "Target date", "date")}${select("status", "Project status", ["Planning", "On track", "Paused", "Complete"])}<div class="col-md-6"><label class="form-label" for="field-progress">Overall progress <span id="progressValue">${Number(item.progress || 0)}%</span></label><input class="form-range" id="field-progress" name="progress" type="range" min="0" max="100" value="${Number(item.progress || 0)}"></div>${textarea("description", "Project description", "What is the project moving toward?")}</div>`;
+    if (entity === "registrations") return `<div class="row g-3">${input("fullName", "Attendee name", "text", "required")}${input("email", "Email address", "email")}${input("phone", "Phone number", "tel")}${input("eventTitle", "Event", "text", "required placeholder=\"Which event is this for?\"")}${select("status", "Registration status", ["Pending", "Confirmed", "Attended", "Cancelled"])}${input("submittedAt", "Registered on", "date")}${textarea("notes", "Notes", "Accessibility needs, guests, or anything else to flag")}</div>`;
+    if (entity === "quizzes") return `<div class="row g-3">${input("title", "Quiz title", "text", "required")}${input("category", "Learning category", "text")}${select("status", "Publication status", ["Draft", "Published"])}${textarea("description", "Quiz description", "What does this quiz check understanding of?")}<div class="col-12"><label class="form-label" for="field-questionsText">Questions</label><textarea class="form-control" id="field-questionsText" name="questionsText" rows="6" placeholder="One question per line, in this format:&#10;Question text | option one;option two;option three | correct option number (starting at 1)">${escapeHtml(item.questionsText ?? "")}</textarea><p class="form-note">Example: What builds trust fastest? | Listening;Interrupting;Ignoring | 1</p></div></div>`;
+    if (entity === "initiatives") return `<div class="row g-3">${input("title", "Initiative name", "text", "required")}${input("category", "Category", "text", "placeholder=\"e.g. Peace club, Dialogue series\"")}${input("county", "County")}${select("status", "Publication status", ["Draft", "Published"])}${input("latitude", "Latitude", "number", "step=\"any\" placeholder=\"e.g. -1.1815\"")}${input("longitude", "Longitude", "number", "step=\"any\" placeholder=\"e.g. 36.9284\"")}${textarea("description", "Description", "What is happening at this location?")}</div>`;
     return "";
   }
 
@@ -489,6 +560,9 @@
     if (entity === "resources") return { title: "", category: "", description: "", format: "FILE", size: "—", status: "Draft", downloads: 0 };
     if (entity === "games") return { title: "", audience: "13–25 years", description: "", status: "Draft", plays: 0, updated: today };
     if (entity === "projects") return { title: "", owner: getAdminName(), dueDate: today, description: "", progress: 0, status: "Planning", updated: "Just now" };
+    if (entity === "registrations") return { fullName: "", email: "", phone: "", eventTitle: "", notes: "", status: "Pending", submittedAt: today };
+    if (entity === "quizzes") return { title: "", category: "", description: "", status: "Draft", questionsText: "" };
+    if (entity === "initiatives") return { title: "", category: "", county: "", latitude: "", longitude: "", description: "", status: "Draft" };
     return {};
   }
 
@@ -501,7 +575,7 @@
   }
 
   function validateEntity(entity, data) {
-    const required = { users: ["fullName", "email"], applications: ["fullName", "email"], content: ["title", "date"], materials: ["title", "category"], resources: ["title", "category"], games: ["title"], projects: ["title", "owner"] }[entity] || [];
+    const required = { users: ["fullName", "email"], applications: ["fullName", "email"], content: ["title", "date"], materials: ["title", "category"], resources: ["title", "category"], games: ["title"], projects: ["title", "owner"], registrations: ["fullName", "eventTitle"], quizzes: ["title"], initiatives: ["title"] }[entity] || [];
     const missing = required.find((field) => !data[field]);
     if (missing) return "Please complete the required fields.";
     if (data.email && !/^\S+@\S+\.\S+$/.test(data.email)) return "Please enter a valid email address.";
@@ -734,7 +808,7 @@
     if (!payload) return false;
     const incoming = payload.data || payload.dashboard || payload;
     const collections = incoming.recent || incoming.collections || incoming;
-    const map = { users: "users", volunteers: "applications", content: "content", materials: "materials", resources: "resources", games: "games", projects: "projects" };
+    const map = { users: "users", volunteers: "applications", content: "content", materials: "materials", resources: "resources", games: "games", projects: "projects", registrations: "registrations", quizzes: "quizzes", initiatives: "initiatives" };
     Object.entries(map).forEach(([serverName, clientName]) => {
       const rows = collections[serverName];
       // Starter cards from the API are helpful for a newly created database,
@@ -806,6 +880,20 @@
       normalised.owner = normalised.owner || "Peace Hub";
       normalised.dueDate = String(normalised.dueDate || normalised.due_date || isoToday()).slice(0, 10);
     }
+    if (collection === "registrations") {
+      normalised.fullName = normalised.fullName || normalised.name || "Attendee";
+      normalised.status = ({ pending: "Pending", confirmed: "Confirmed", attended: "Attended", cancelled: "Cancelled" })[String(normalised.status).toLowerCase()] || normalised.status || "Pending";
+      normalised.submittedAt = String(item.submittedAt || item.createdAt || isoToday()).slice(0, 10);
+    }
+    if (collection === "quizzes") {
+      normalised.category = normalised.category || "General";
+      normalised.questionsText = questionsToText(normalised.questions);
+      normalised.status = String(normalised.status || "Draft").replace(/^./, (char) => char.toUpperCase());
+    }
+    if (collection === "initiatives") {
+      normalised.category = normalised.category || "Initiative";
+      normalised.status = String(normalised.status || "Draft").replace(/^./, (char) => char.toUpperCase());
+    }
     return normalised;
   }
 
@@ -817,6 +905,9 @@
     if (entity === "resources") return { title: item.title, description: item.description, category: item.category, fileName: item.title, fileType: item.format, status: String(item.status || "Draft").toLowerCase() };
     if (entity === "games") return { title: item.title, description: item.description, status: String(item.status || "Draft").toLowerCase() };
     if (entity === "projects") return { title: item.title, description: item.description, owner: item.owner, dueDate: item.dueDate, progress: item.progress, status: ({ "On track": "active", Planning: "planning", Paused: "on_hold", Complete: "completed" })[item.status] || "planning" };
+    if (entity === "registrations") return { name: item.fullName, email: item.email, phone: item.phone, eventTitle: item.eventTitle, notes: item.notes, status: String(item.status || "Pending").toLowerCase(), submittedAt: item.submittedAt };
+    if (entity === "quizzes") return { title: item.title, description: item.description, category: item.category, questions: parseQuestionsText(item.questionsText), status: String(item.status || "Draft").toLowerCase() };
+    if (entity === "initiatives") return { title: item.title, description: item.description, category: item.category, county: item.county, latitude: item.latitude === "" ? null : item.latitude, longitude: item.longitude === "" ? null : item.longitude, status: String(item.status || "Draft").toLowerCase() };
     return item;
   }
 
@@ -937,7 +1028,7 @@
       event.preventDefault();
       const query = event.currentTarget.value.trim();
       if (!query) return;
-      const collections = ["users", "applications", "content", "materials", "resources", "games", "projects"];
+      const collections = ["users", "applications", "content", "registrations", "materials", "quizzes", "resources", "games", "projects", "initiatives"];
       const matches = collections.flatMap((entity) => (entityItems(entity) || []).filter((item) => JSON.stringify(item).toLowerCase().includes(query.toLowerCase())).map((item) => ({ entity, item })));
       if (!matches.length) {
         showToast(`No workspace results for “${query}”.`, true);

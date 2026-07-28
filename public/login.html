@@ -21,6 +21,8 @@
     Common Ground — KU Peace Hub
   </a>
 
+  <div id="langSwitcherSlot" style="display:flex;justify-content:center;margin:0 0 12px;"></div>
+
   <div class="auth-card">
 
     <!-- Google Identity Services config — one instance covers the whole page -->
@@ -31,16 +33,16 @@
     </div>
 
     <div class="mode-toggle" role="tablist" id="modeToggle">
-      <button class="mode-btn active" data-mode="login" role="tab" aria-selected="true">Log in</button>
-      <button class="mode-btn" data-mode="signup" role="tab" aria-selected="false">Sign up</button>
+      <button class="mode-btn active" data-mode="login" role="tab" aria-selected="true" data-i18n="auth.modeLogin">Log in</button>
+      <button class="mode-btn" data-mode="signup" role="tab" aria-selected="false" data-i18n="auth.modeSignup">Sign up</button>
     </div>
 
     <div id="authPanels">
 
       <!-- LOG IN -->
       <div class="panel" id="panel-login">
-        <h1>Peace over pieces</h1>
-        <p class="sub">Log in to keep track of your pledges and practices.</p>
+        <h1 data-i18n="auth.login.title">Peace over pieces</h1>
+        <p class="sub" data-i18n="auth.login.sub">Log in to keep track of your pledges and practices.</p>
 
         <div class="google-btn-wrap">
           <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="continue_with" data-size="large" data-logo_alignment="left" data-width="320"></div>
@@ -49,39 +51,39 @@
         <div class="divider"><span>or</span></div>
 
         <div class="method-tabs" data-scope="login">
-          <button class="method-btn active" data-method="email">Email</button>
-          <button class="method-btn" data-method="phone">Phone</button>
+          <button class="method-btn active" data-method="email" data-i18n="auth.emailLabel">Email</button>
+          <button class="method-btn" data-method="phone" data-i18n="auth.phoneTab">Phone</button>
         </div>
 
         <form class="method-form active" data-scope="login" data-method-form="email" novalidate>
           <div class="field">
-            <label for="loginEmail">Email</label>
+            <label for="loginEmail" data-i18n="auth.emailLabel">Email</label>
             <input type="email" id="loginEmail" required autocomplete="email">
-            <span class="field-error">Enter a valid email address.</span>
+            <span class="field-error" data-i18n="auth.emailError">Enter a valid email address.</span>
           </div>
           <div class="field">
-            <label for="loginPassword">Password</label>
+            <label for="loginPassword" data-i18n="auth.passwordLabel">Password</label>
             <input type="password" id="loginPassword" required autocomplete="current-password">
-            <span class="field-error">Enter your password.</span>
+            <span class="field-error" data-i18n="auth.login.passwordError">Enter your password.</span>
           </div>
           <div class="row-between">
             <span></span>
-            <button type="button" class="forgot-link" style="background:none;border:none;padding:0;cursor:pointer;" data-go="recovery">Forgot password?</button>
+            <button type="button" class="forgot-link" style="background:none;border:none;padding:0;cursor:pointer;" data-go="recovery" data-i18n="auth.forgotPassword">Forgot password?</button>
           </div>
-          <button type="submit" class="btn-primary">Log in</button>
+          <button type="submit" class="btn-primary" data-i18n="auth.login.submit">Log in</button>
         </form>
 
         <form class="method-form" data-scope="login" data-method-form="phone" novalidate>
           <div class="field">
-            <label for="loginPhone">Phone number</label>
+            <label for="loginPhone" data-i18n="auth.phoneLabel">Phone number</label>
             <input type="tel" id="loginPhone" placeholder="+254 700 000 000" required autocomplete="tel">
-            <span class="field-error">Enter a valid phone number.</span>
+            <span class="field-error" data-i18n="auth.phoneError">Enter a valid phone number.</span>
           </div>
           <div class="code-step" data-code-step hidden>
             <div class="field">
-              <label for="loginCode">Verification code</label>
+              <label for="loginCode" data-i18n="auth.codeLabel">Verification code</label>
               <input type="text" id="loginCode" inputmode="numeric" maxlength="6" placeholder="6-digit code">
-              <span class="field-hint">Sent by text message.</span>
+              <span class="field-hint" data-i18n="auth.codeHint">Sent by text message.</span>
             </div>
           </div>
           <button type="submit" class="btn-primary" data-send-label="Send code" data-submit-label="Log in">Send code</button>
@@ -89,13 +91,13 @@
 
         <p class="status-message" data-status="login"></p>
 
-        <p class="switch-line">New here? <button type="button" data-go="signup">Create an account</button></p>
+        <p class="switch-line"><span data-i18n="auth.login.newHere">New here?</span> <button type="button" data-go="signup" data-i18n="auth.createAccount">Create an account</button></p>
       </div>
 
       <!-- SIGN UP -->
       <div class="panel" id="panel-signup" hidden>
-        <h1>Create your account</h1>
-        <p class="sub">Join to save your practices and follow your community's progress.</p>
+        <h1 data-i18n="auth.signup.title">Create your account</h1>
+        <p class="sub" data-i18n="auth.signup.sub">Join to save your practices and follow your community's progress.</p>
 
         <div class="google-btn-wrap">
           <div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="outline" data-text="signup_with" data-size="large" data-logo_alignment="left" data-width="320"></div>
@@ -104,59 +106,59 @@
         <div class="divider"><span>or</span></div>
 
         <div class="method-tabs" data-scope="signup">
-          <button class="method-btn active" data-method="email">Email</button>
-          <button class="method-btn" data-method="phone">Phone</button>
+          <button class="method-btn active" data-method="email" data-i18n="auth.emailLabel">Email</button>
+          <button class="method-btn" data-method="phone" data-i18n="auth.phoneTab">Phone</button>
         </div>
 
         <form class="method-form active" data-scope="signup" data-method-form="email" novalidate>
           <div class="field-row">
             <div class="field">
-              <label for="signupName">Name</label>
+              <label for="signupName" data-i18n="auth.nameLabel">Name</label>
               <input type="text" id="signupName" required autocomplete="name">
             </div>
           </div>
           <div class="field">
-            <label for="signupEmail">Email</label>
+            <label for="signupEmail" data-i18n="auth.emailLabel">Email</label>
             <input type="email" id="signupEmail" required autocomplete="email">
-            <span class="field-error">Enter a valid email address.</span>
+            <span class="field-error" data-i18n="auth.emailError">Enter a valid email address.</span>
           </div>
           <div class="field">
-            <label for="signupPassword">Password</label>
+            <label for="signupPassword" data-i18n="auth.passwordLabel">Password</label>
             <input type="password" id="signupPassword" required autocomplete="new-password" minlength="8">
-            <span class="field-hint">At least 8 characters.</span>
-            <span class="field-error">Password must be at least 8 characters.</span>
+            <span class="field-hint" data-i18n="auth.signup.passwordHint">At least 8 characters.</span>
+            <span class="field-error" data-i18n="auth.signup.passwordError">Password must be at least 8 characters.</span>
           </div>
           <div class="field">
-            <label for="signupPasswordConfirm">Confirm password</label>
+            <label for="signupPasswordConfirm" data-i18n="auth.confirmPasswordLabel">Confirm password</label>
             <input type="password" id="signupPasswordConfirm" required autocomplete="new-password">
-            <span class="field-error">Passwords don't match.</span>
+            <span class="field-error" data-i18n="auth.confirmPasswordError">Passwords don't match.</span>
           </div>
           <label class="checkbox-row">
             <input type="checkbox" required>
-            <span>I agree to keep this space respectful and safe for other members.</span>
+            <span data-i18n="auth.agreeRespectful">I agree to keep this space respectful and safe for other members.</span>
           </label>
-          <button type="submit" class="btn-primary">Create account</button>
+          <button type="submit" class="btn-primary" data-i18n="auth.signup.submit">Create account</button>
         </form>
 
         <form class="method-form" data-scope="signup" data-method-form="phone" novalidate>
           <div class="field">
-            <label for="signupNamePhone">Name</label>
+            <label for="signupNamePhone" data-i18n="auth.nameLabel">Name</label>
             <input type="text" id="signupNamePhone" required autocomplete="name">
           </div>
           <div class="field">
-            <label for="signupPhone">Phone number</label>
+            <label for="signupPhone" data-i18n="auth.phoneLabel">Phone number</label>
             <input type="tel" id="signupPhone" placeholder="+254 700 000 000" required autocomplete="tel">
-            <span class="field-error">Enter a valid phone number.</span>
+            <span class="field-error" data-i18n="auth.phoneError">Enter a valid phone number.</span>
           </div>
           <div class="code-step" data-code-step hidden>
             <div class="field">
-              <label for="signupCode">Verification code</label>
+              <label for="signupCode" data-i18n="auth.codeLabel">Verification code</label>
               <input type="text" id="signupCode" inputmode="numeric" maxlength="6" placeholder="6-digit code">
-              <span class="field-hint">Sent by text message.</span>
+              <span class="field-hint" data-i18n="auth.codeHint">Sent by text message.</span>
             </div>
             <label class="checkbox-row">
               <input type="checkbox" required>
-              <span>I agree to keep this space respectful and safe for other members.</span>
+              <span data-i18n="auth.agreeRespectful">I agree to keep this space respectful and safe for other members.</span>
             </label>
           </div>
           <button type="submit" class="btn-primary" data-send-label="Send code" data-submit-label="Create account">Send code</button>
@@ -164,42 +166,42 @@
 
         <p class="status-message" data-status="signup"></p>
 
-        <p class="switch-line">Already have an account? <button type="button" data-go="login">Log in</button></p>
+        <p class="switch-line"><span data-i18n="auth.signup.alreadyHave">Already have an account?</span> <button type="button" data-go="login" data-i18n="auth.login.link">Log in</button></p>
       </div>
 
       <!-- RECOVERY -->
       <div class="panel" id="panel-recovery" hidden>
-        <button type="button" class="back-link" data-go="login">&larr; Back to log in</button>
-        <h1>Reset your password</h1>
-        <p class="sub">Tell us where to send your reset link or code.</p>
+        <button type="button" class="back-link" data-go="login">&larr; <span data-i18n="auth.recovery.back">Back to log in</span></button>
+        <h1 data-i18n="auth.recovery.title">Reset your password</h1>
+        <p class="sub" data-i18n="auth.recovery.sub">Tell us where to send your reset link or code.</p>
 
         <div class="method-tabs" data-scope="recovery">
-          <button class="method-btn active" data-method="email">Email</button>
-          <button class="method-btn" data-method="phone">Phone</button>
+          <button class="method-btn active" data-method="email" data-i18n="auth.emailLabel">Email</button>
+          <button class="method-btn" data-method="phone" data-i18n="auth.phoneTab">Phone</button>
         </div>
 
         <form class="method-form active" data-scope="recovery" data-method-form="email" novalidate>
           <div class="field">
-            <label for="recoveryEmail">Email</label>
+            <label for="recoveryEmail" data-i18n="auth.emailLabel">Email</label>
             <input type="email" id="recoveryEmail" required autocomplete="email">
-            <span class="field-error">Enter a valid email address.</span>
+            <span class="field-error" data-i18n="auth.emailError">Enter a valid email address.</span>
           </div>
-          <button type="submit" class="btn-primary">Send reset link</button>
+          <button type="submit" class="btn-primary" data-i18n="auth.recovery.submit">Send reset link</button>
         </form>
 
         <form class="method-form" data-scope="recovery" data-method-form="phone" novalidate>
           <div class="field">
-            <label for="recoveryPhone">Phone number</label>
+            <label for="recoveryPhone" data-i18n="auth.phoneLabel">Phone number</label>
             <input type="tel" id="recoveryPhone" placeholder="+254 700 000 000" required autocomplete="tel">
-            <span class="field-error">Enter a valid phone number.</span>
+            <span class="field-error" data-i18n="auth.phoneError">Enter a valid phone number.</span>
           </div>
           <div class="code-step" data-code-step hidden>
             <div class="field">
-              <label for="recoveryCode">Verification code</label>
+              <label for="recoveryCode" data-i18n="auth.codeLabel">Verification code</label>
               <input type="text" id="recoveryCode" inputmode="numeric" maxlength="6" placeholder="6-digit code">
             </div>
             <div class="field">
-              <label for="recoveryNewPassword">New password</label>
+              <label for="recoveryNewPassword" data-i18n="auth.recovery.newPasswordLabel">New password</label>
               <input type="password" id="recoveryNewPassword" minlength="8">
             </div>
           </div>
@@ -216,6 +218,7 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/i18n.js" defer></script>
 <script src="js/main.js" defer></script>
 <script src="js/auth.js" defer></script>
 </body>

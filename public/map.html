@@ -25,14 +25,16 @@
     </button>
     <div class="collapse navbar-collapse" id="navLinks">
       <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
-        <li class="nav-item"><a class="nav-link" href="index.html">Home</a></li>
-        <li class="nav-item"><a class="nav-link" href="about.html">What breaks peace</a></li>
-        <li class="nav-item"><a class="nav-link" href="pledge.html">Youth pledge</a></li>
-        <li class="nav-item"><a class="nav-link" href="map.html">Peace map</a></li>
-        <li class="nav-item"><a class="nav-link" href="peace-tree.html">Peace Tree project</a></li>
-        <li class="nav-item"><a class="nav-link" href="peace-guide.html">Peace Guide</a></li>
-        <li class="nav-item"><a class="nav-link" href="report.html">Report / Get help</a></li>
-        <li class="nav-item"><a class="nav-link nav-cta" href="login.html">Log in</a></li>
+        <li class="nav-item"><a class="nav-link" href="index.html" data-i18n="nav.home">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="about.html" data-i18n="nav.breaks">What breaks peace</a></li>
+        <li class="nav-item"><a class="nav-link" href="pledge.html" data-i18n="nav.pledge">Youth pledge</a></li>
+        <li class="nav-item"><a class="nav-link" href="news.html" data-i18n="nav.news">News &amp; events</a></li>
+        <li class="nav-item"><a class="nav-link" href="quizzes.html" data-i18n="nav.quizzes">Quizzes</a></li>
+        <li class="nav-item"><a class="nav-link" href="map.html" data-i18n="nav.map">Peace map</a></li>
+        <li class="nav-item"><a class="nav-link" href="peace-tree.html" data-i18n="nav.tree">Peace Tree project</a></li>
+        <li class="nav-item"><a class="nav-link" href="peace-guide.html" data-i18n="nav.guide">Peace Guide</a></li>
+        <li class="nav-item"><a class="nav-link" href="report.html" data-i18n="nav.report">Report / Get help</a></li>
+        <li class="nav-item"><a class="nav-link nav-cta" href="login.html" data-i18n="nav.login">Log in</a></li>
       </ul>
     </div>
   </div>
@@ -40,9 +42,9 @@
 
 <header class="map-page-hero">
   <div class="wrap">
-    <h1>I COMMIT TO PEACEFUL ELECTIONS</h1>
-    <p>IN 2027 — NO VIOLENCE, ONLY DIALOGUE!</p>
-    <div class="badge-org">Messengers of Peace</div>
+    <h1 data-i18n="map.hero.title">I COMMIT TO PEACEFUL ELECTIONS</h1>
+    <p data-i18n="map.hero.sub">IN 2027 — NO VIOLENCE, ONLY DIALOGUE!</p>
+    <div class="badge-org" data-i18n="map.hero.badge">Messengers of Peace</div>
   </div>
 </header>
 
@@ -50,10 +52,10 @@
 
   <ul class="nav nav-tabs map-game-tabs" id="mapGameTabs" role="tablist">
     <li class="nav-item" role="presentation">
-      <button class="nav-link active" id="tab-map-btn" data-bs-toggle="tab" data-bs-target="#tab-map" type="button" role="tab" aria-controls="tab-map" aria-selected="true">🗺️ Sign the Peace Map</button>
+      <button class="nav-link active" id="tab-map-btn" data-bs-toggle="tab" data-bs-target="#tab-map" type="button" role="tab" aria-controls="tab-map" aria-selected="true">🗺️ <span data-i18n="map.tab.map">Sign the Peace Map</span></button>
     </li>
     <li class="nav-item" role="presentation">
-      <button class="nav-link" id="tab-game-btn" data-bs-toggle="tab" data-bs-target="#tab-game" type="button" role="tab" aria-controls="tab-game" aria-selected="false">🌉 Play Peace Bridge</button>
+      <button class="nav-link" id="tab-game-btn" data-bs-toggle="tab" data-bs-target="#tab-game" type="button" role="tab" aria-controls="tab-game" aria-selected="false">🌉 <span data-i18n="map.tab.game">Play Peace Bridge</span></button>
     </li>
   </ul>
 
@@ -68,34 +70,38 @@
             <div class="map-container" id="mapContainer">
               <img src="images/map.png" alt="Map of Kenya — Messengers of Peace commitment" id="kenyaMap">
             </div>
-            <div class="map-caption">Click anywhere on the map to sign your commitment</div>
+            <div class="map-caption" data-i18n="map.caption">Click anywhere on the map to sign your commitment</div>
+            <div class="map-legend">
+              <span class="map-legend-item"><span class="map-legend-dot"></span> <span data-i18n="map.legend.signatures">Peace signatures</span></span>
+              <span class="map-legend-item"><span class="map-legend-pin"></span> <span data-i18n="map.legend.initiatives">Initiatives (hover for details)</span></span>
+            </div>
           </div>
 
           <!-- Sidebar -->
           <div class="map-sidebar">
             <div class="sign-box">
-              <h2>Add Your Name to the Peace Map</h2>
+              <h2 data-i18n="map.form.title">Add Your Name to the Peace Map</h2>
               <form id="signForm">
-                <input type="text" id="nameInput" placeholder="Your Full Name" required>
-                <input type="text" id="countyInput" placeholder="County (optional)">
-                <input type="number" id="ageInput" placeholder="Age (optional)" min="5" max="120">
+                <input type="text" id="nameInput" placeholder="Your Full Name" data-i18n-placeholder="map.form.namePlaceholder" required>
+                <input type="text" id="countyInput" placeholder="County (optional)" data-i18n-placeholder="map.form.countyPlaceholder">
+                <input type="number" id="ageInput" placeholder="Age (optional)" data-i18n-placeholder="map.form.agePlaceholder" min="5" max="120">
                 <select id="scoutInput">
-                  <option value="">Are you a Scout? (optional)</option>
-                  <option value="yes">Yes, I'm a Scout</option>
-                  <option value="no">No</option>
+                  <option value="" data-i18n="map.form.scoutQuestion">Are you a Scout? (optional)</option>
+                  <option value="yes" data-i18n="map.form.scoutYes">Yes, I'm a Scout</option>
+                  <option value="no" data-i18n="map.form.scoutNo">No</option>
                 </select>
-                <button type="submit" id="signBtn">SIGN THE COMMITMENT</button>
+                <button type="submit" id="signBtn" data-i18n="map.form.submit">SIGN THE COMMITMENT</button>
                 <p class="map-form-error" id="formError"></p>
               </form>
             </div>
 
             <div class="map-stats">
               <h2 id="signatureCount">0</h2>
-              <p><strong>Kenyans Committed to Peace</strong></p>
+              <p><strong data-i18n="map.stats.committed">Kenyans Committed to Peace</strong></p>
             </div>
 
             <div>
-              <h3 class="recent-heading">Recent Messengers of Peace</h3>
+              <h3 class="recent-heading" data-i18n="map.stats.recentHeading">Recent Messengers of Peace</h3>
               <div class="signatures-list" id="signaturesList"></div>
             </div>
           </div>
@@ -103,37 +109,37 @@
 
         <!-- Statistics -->
         <div class="map-stats-panel">
-          <h3 class="recent-heading">Who's signing</h3>
+          <h3 class="recent-heading" data-i18n="map.stats.whoSigning">Who's signing</h3>
           <div class="stats-grid" id="statsGrid">
             <div class="stat-card">
-              <div class="stat-label">Average age</div>
+              <div class="stat-label" data-i18n="map.stats.avgAge">Average age</div>
               <div class="stat-value" id="statAvgAge">—</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Most common age group</div>
+              <div class="stat-label" data-i18n="map.stats.ageGroup">Most common age group</div>
               <div class="stat-value" id="statAgeGroup">—</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Top county</div>
+              <div class="stat-label" data-i18n="map.stats.topCounty">Top county</div>
               <div class="stat-value" id="statTopCounty">—</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Counties represented</div>
+              <div class="stat-label" data-i18n="map.stats.countyCount">Counties represented</div>
               <div class="stat-value" id="statCountyCount">—</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Scouts</div>
+              <div class="stat-label" data-i18n="map.stats.scouts">Scouts</div>
               <div class="stat-value" id="statScoutPercent">—</div>
             </div>
             <div class="stat-card">
-              <div class="stat-label">Non-Scouts</div>
+              <div class="stat-label" data-i18n="map.stats.nonScouts">Non-Scouts</div>
               <div class="stat-value" id="statNonScoutPercent">—</div>
             </div>
           </div>
         </div>
 
         <div class="map-footnote">
-          <p>Signatures are recorded on this project's own backend and shared by everyone visiting the page.</p>
+          <p data-i18n="map.footnote">Signatures are recorded on this project's own backend and shared by everyone visiting the page.</p>
         </div>
       </div>
     </div>
@@ -154,12 +160,13 @@
       <img src="images/logo.jpg" alt="Kenyatta University Scouts — Panthera Rover Crew logo">
       Common Ground
     </div>
-    <p>Messengers of Peace — ahead of the 2027 General Election.</p>
-    <div class="copyright">&copy; <span data-year></span> KU Peace Innovation Hub — Kenyatta University Scouts.</div>
+    <p data-i18n="footer.mapTagline">Messengers of Peace — ahead of the 2027 General Election.</p>
+    <div class="copyright">&copy; <span data-year></span> <span data-i18n="footer.copyrightShort">KU Peace Innovation Hub — Kenyatta University Scouts.</span></div>
   </div>
 </footer>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="js/i18n.js" defer></script>
 <script src="js/main.js" defer></script>
 <script src="js/map.js" defer></script>
 </body>

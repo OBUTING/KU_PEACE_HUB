@@ -351,6 +351,55 @@ async function initDb() {
     );
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS event_registrations (
+      id UUID PRIMARY KEY,
+      event_title TEXT NOT NULL,
+      full_name TEXT NOT NULL,
+      email TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      notes TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'pending',
+      submitted_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT event_registrations_status_check
+        CHECK (status IN ('pending', 'confirmed', 'attended', 'cancelled'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS quizzes (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      questions JSONB NOT NULL DEFAULT '[]'::jsonb,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT quizzes_status_check
+        CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS initiatives (
+      id UUID PRIMARY KEY,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL DEFAULT '',
+      category TEXT NOT NULL DEFAULT '',
+      county TEXT NOT NULL DEFAULT '',
+      latitude DOUBLE PRECISION,
+      longitude DOUBLE PRECISION,
+      status TEXT NOT NULL DEFAULT 'draft',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      CONSTRAINT initiatives_status_check
+        CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
   console.log("Database ready (tables created if they didn't already exist).");
 }
 
@@ -398,6 +447,30 @@ function cleanAdminList(value) {
 function cleanAdminEnum(value, options, fallback) {
   const cleaned = cleanAdminText(value, 40).toLowerCase();
   return options.includes(cleaned) ? cleaned : fallback;
+}
+
+function cleanQuizQuestions(value) {
+  let list = value;
+  if (typeof list === "string") {
+    try {
+      list = JSON.parse(list);
+    } catch (err) {
+      list = [];
+    }
+  }
+  if (!Array.isArray(list)) return [];
+  return list
+    .slice(0, 50)
+    .map((entry) => {
+      const question = cleanAdminText(entry && entry.question, 300);
+      const options = Array.isArray(entry && entry.options)
+        ? entry.options.map((option) => cleanAdminText(option, 200)).filter(Boolean).slice(0, 8)
+        : [];
+      const parsedIndex = Number.parseInt(entry && entry.correctIndex, 10);
+      const correctIndex = Number.isInteger(parsedIndex) ? Math.max(0, Math.min(parsedIndex, Math.max(0, options.length - 1))) : 0;
+      return { question, options, correctIndex };
+    })
+    .filter((entry) => entry.question && entry.options.length >= 2);
 }
 
 function cleanAdminProgress(value) {
@@ -533,6 +606,49 @@ const ADMIN_COLLECTIONS = {
       dateField("dueDate", "due_date", { dateOnly: true }),
     ],
   },
+  registrations: {
+    table: "event_registrations",
+    orderBy: "submitted_at DESC",
+    select: `id, full_name AS "name", email, phone, event_title AS "eventTitle", notes, status,
+             submitted_at AS "submittedAt", created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("name", "full_name", 120, { required: true }),
+      textField("email", "email", 160),
+      textField("phone", "phone", 40),
+      textField("eventTitle", "event_title", 180, { required: true }),
+      textField("notes", "notes", 2000),
+      enumField("status", "status", ["pending", "confirmed", "attended", "cancelled"], "pending"),
+      dateField("submittedAt", "submitted_at", { defaultValue: () => new Date().toISOString() }),
+    ],
+  },
+  quizzes: {
+    table: "quizzes",
+    orderBy: "created_at DESC",
+    select: `id, title, description, category, questions, status,
+             created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      textField("category", "category", 100),
+      { key: "questions", column: "questions", defaultValue: [], normalize: cleanQuizQuestions, toDatabase: (value) => JSON.stringify(value) },
+      enumField("status", "status", ["draft", "published", "archived"], "draft"),
+    ],
+  },
+  initiatives: {
+    table: "initiatives",
+    orderBy: "created_at DESC",
+    select: `id, title, description, category, county, latitude, longitude, status,
+             created_at AS "createdAt", updated_at AS "updatedAt"`,
+    fields: [
+      textField("title", "title", 180, { required: true }),
+      textField("description", "description", 4000),
+      textField("category", "category", 100),
+      textField("county", "county", 80),
+      { key: "latitude", column: "latitude", defaultValue: null, normalize: (value) => (value === "" || value === null || value === undefined ? null : Number(value)) },
+      { key: "longitude", column: "longitude", defaultValue: null, normalize: (value) => (value === "" || value === null || value === undefined ? null : Number(value)) },
+      enumField("status", "status", ["draft", "published", "archived"], "draft"),
+    ],
+  },
 };
 
 const ADMIN_STARTER_DATA = {
@@ -573,6 +689,23 @@ const ADMIN_STARTER_DATA = {
     description: "Add a project record to track its goals, owner, timeline, and progress.",
     status: "planning",
     progress: 0,
+    isStarter: true,
+  }],
+  quizzes: [{
+    id: "starter-quiz",
+    title: "Add a peacebuilding quiz",
+    description: "Write a few questions to check understanding after a course or workshop.",
+    category: "Learning",
+    questions: [],
+    status: "draft",
+    isStarter: true,
+  }],
+  initiatives: [{
+    id: "starter-initiative",
+    title: "Add an initiative to the map",
+    description: "Plot a peace club, dialogue circle, or project location on the initiatives map.",
+    category: "Peace club",
+    status: "draft",
     isStarter: true,
   }],
 };
@@ -639,6 +772,93 @@ app.get("/api/signatures", async (req, res) => {
   }
 });
 
+// Public — the news & events feed. Only ever exposes published items,
+// never drafts or scheduled/archived ones. Optional ?type=news|event filter.
+app.get("/api/content", async (req, res) => {
+  const type = req.query.type === "event" || req.query.type === "news" ? req.query.type : null;
+  try {
+    const params = type ? ["published", type] : ["published"];
+    const typeClause = type ? "AND type = $2" : "";
+    const { rows } = await pool.query(
+      `SELECT id, type, title, summary, body, image_url AS "imageUrl",
+              event_at AS "eventAt", location, published_at AS "publishedAt"
+       FROM content_items
+       WHERE status = $1 ${typeClause}
+       ORDER BY COALESCE(event_at, published_at) DESC NULLS LAST, published_at DESC
+       LIMIT 100`,
+      params
+    );
+    res.json({ ok: true, content: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load news & events." });
+  }
+});
+
+// Public — the initiatives map (peace clubs, dialogue circles, and other
+// projects plotted by admins) only ever exposes published pins with a
+// location, never drafts.
+app.get("/api/initiatives", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, description, category, county, latitude, longitude
+       FROM initiatives
+       WHERE status = 'published' AND latitude IS NOT NULL AND longitude IS NOT NULL
+       ORDER BY created_at DESC`
+    );
+    res.json({ ok: true, initiatives: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load initiatives." });
+  }
+});
+
+// Public — published quizzes only, for the peace guide / learning pages.
+app.get("/api/quizzes", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, title, description, category, questions
+       FROM quizzes
+       WHERE status = 'published'
+       ORDER BY created_at DESC`
+    );
+    res.json({ ok: true, quizzes: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load quizzes." });
+  }
+});
+
+// Public — event sign-up form on the news & events pages. Registrations
+// land as "pending" and are reviewed from the admin Events & registration
+// section, the same way volunteer applications are reviewed.
+app.post("/api/events/register", async (req, res) => {
+  const body = req.body && typeof req.body === "object" ? req.body : {};
+  const eventTitle = cleanAdminText(body.eventTitle, 180);
+  const fullName = cleanAdminText(body.fullName || body.name, 120);
+  const email = cleanAdminText(body.email, 160);
+  const phone = cleanAdminText(body.phone, 40);
+  const notes = cleanAdminText(body.notes, 2000);
+
+  if (!eventTitle || !fullName) {
+    return res.status(400).json({ ok: false, error: "eventTitle and fullName are required." });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO event_registrations (id, event_title, full_name, email, phone, notes)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, event_title AS "eventTitle", full_name AS "name", email, phone, status,
+                 submitted_at AS "submittedAt"`,
+      [crypto.randomUUID(), eventTitle, fullName, email, phone, notes]
+    );
+    res.status(201).json({ ok: true, registration: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save your registration." });
+  }
+});
+
 app.get("/api/admin/verify", requireAdmin, (req, res) => {
   res.json({ ok: true });
 });
@@ -667,6 +887,9 @@ app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
       recentResources,
       recentGames,
       recentProjects,
+      recentRegistrations,
+      recentQuizzes,
+      recentInitiatives,
     ] = await Promise.all([
       pool.query(`SELECT COUNT(*)::int AS count FROM users`),
       pool.query(`SELECT COUNT(*)::int AS count, COUNT(*) FILTER (WHERE status = 'pending')::int AS pending FROM volunteer_applications`),
@@ -686,6 +909,9 @@ app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
       listAdminCollection(ADMIN_COLLECTIONS.resources, 5),
       listAdminCollection(ADMIN_COLLECTIONS.games, 5),
       listAdminCollection(ADMIN_COLLECTIONS.projects, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.registrations, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.quizzes, 5),
+      listAdminCollection(ADMIN_COLLECTIONS.initiatives, 5),
     ]);
 
     const count = (result, key = "count") => Number(result.rows[0][key] || 0);
@@ -695,6 +921,8 @@ app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
       resources: recentResources,
       games: recentGames,
       projects: recentProjects,
+      quizzes: recentQuizzes,
+      initiatives: recentInitiatives,
     };
     const withStarter = (collection) => current[collection].length
       ? current[collection]
@@ -743,6 +971,9 @@ app.get("/api/admin/dashboard", requireAdmin, async (req, res) => {
         resources: withStarter("resources"),
         games: withStarter("games"),
         projects: withStarter("projects"),
+        registrations: recentRegistrations,
+        quizzes: withStarter("quizzes"),
+        initiatives: withStarter("initiatives"),
       },
       emptyCollections: Object.keys(current).filter((collection) => current[collection].length === 0),
     });

@@ -163,6 +163,61 @@
     }
   }
 
+  // ---- Initiatives layer (peace clubs, dialogue circles, projects) ----
+  // Plotted from admin-entered latitude/longitude using Kenya's approximate
+  // geographic bounding box. The base map image isn't a calibrated GIS
+  // projection, so placement is an approximation, not pixel-exact.
+  const KENYA_BOUNDS = { minLat: -4.72, maxLat: 5.05, minLon: 33.9, maxLon: 41.9 };
+
+  function latLonToPercent(lat, lon) {
+    const x = ((lon - KENYA_BOUNDS.minLon) / (KENYA_BOUNDS.maxLon - KENYA_BOUNDS.minLon)) * 100;
+    const y = ((KENYA_BOUNDS.maxLat - lat) / (KENYA_BOUNDS.maxLat - KENYA_BOUNDS.minLat)) * 100;
+    return { x: Math.min(98, Math.max(2, x)), y: Math.min(98, Math.max(2, y)) };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[ch]);
+  }
+
+  function addInitiativePin(item) {
+    if (item.latitude === null || item.longitude === null) return;
+    const { x, y } = latLonToPercent(Number(item.latitude), Number(item.longitude));
+
+    const pin = document.createElement("div");
+    pin.className = "initiative-pin";
+    pin.style.left = `${x}%`;
+    pin.style.top = `${y}%`;
+    pin.setAttribute("tabindex", "0");
+    pin.setAttribute("role", "button");
+    pin.setAttribute("aria-label", item.title);
+
+    const tooltip = document.createElement("div");
+    tooltip.className = "initiative-tooltip";
+    tooltip.style.left = `${x}%`;
+    tooltip.style.top = `${y}%`;
+    tooltip.innerHTML = `<strong>${escapeHtml(item.title)}</strong>` +
+      `<span class="initiative-tooltip-meta">${escapeHtml(item.category || "Initiative")}${item.county ? " · " + escapeHtml(item.county) : ""}</span>`;
+
+    pin.addEventListener("focus", () => tooltip.classList.add("is-visible"));
+    pin.addEventListener("blur", () => tooltip.classList.remove("is-visible"));
+    pin.addEventListener("click", () => tooltip.classList.toggle("is-visible"));
+
+    mapContainer.appendChild(pin);
+    mapContainer.appendChild(tooltip);
+  }
+
+  async function loadInitiatives() {
+    try {
+      const res = await fetch("/api/initiatives");
+      const data = await res.json();
+      if (data.ok) data.initiatives.forEach(addInitiativePin);
+    } catch (err) {
+      // Initiative pins are a nice-to-have; fail silently rather than blocking the map.
+    }
+  }
+
   async function loadAll() {
     try {
       const [allRes, countRes] = await Promise.all([
@@ -177,6 +232,7 @@
 
       loadRecentAdminAware();
       loadStats();
+      loadInitiatives();
     } catch (err) {
       setError("Could not reach the server. Is the backend running? (npm start)");
     }

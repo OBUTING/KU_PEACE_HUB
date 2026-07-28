@@ -35,12 +35,15 @@
 
         <p class="nav-label nav-label-spaced">Publish &amp; learn</p>
         <button class="admin-nav-link" type="button" data-view-target="content"><i class="fa-regular fa-newspaper"></i><span>News &amp; events</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="registrations"><i class="fa-regular fa-calendar-check"></i><span>Events &amp; registration</span><b class="nav-count" data-count="registrations">0</b></button>
         <button class="admin-nav-link" type="button" data-view-target="learning"><i class="fa-solid fa-graduation-cap"></i><span>Learning hub</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="quizzes"><i class="fa-solid fa-circle-question"></i><span>Quizzes</span></button>
         <button class="admin-nav-link" type="button" data-view-target="resources"><i class="fa-regular fa-folder"></i><span>Resources</span></button>
         <button class="admin-nav-link" type="button" data-view-target="games"><i class="fa-solid fa-gamepad"></i><span>Peace games</span></button>
 
         <p class="nav-label nav-label-spaced">Impact</p>
         <button class="admin-nav-link" type="button" data-view-target="projects"><i class="fa-solid fa-seedling"></i><span>Projects</span></button>
+        <button class="admin-nav-link" type="button" data-view-target="initiatives"><i class="fa-solid fa-map-location-dot"></i><span>Initiatives map</span></button>
         <button class="admin-nav-link" type="button" data-view-target="analytics"><i class="fa-solid fa-chart-line"></i><span>Analytics</span></button>
       </nav>
 
@@ -77,10 +80,13 @@
       <section class="admin-view" data-view="users" aria-labelledby="usersHeading"></section>
       <section class="admin-view" data-view="applications" aria-labelledby="applicationsHeading"></section>
       <section class="admin-view" data-view="content" aria-labelledby="contentHeading"></section>
+      <section class="admin-view" data-view="registrations" aria-labelledby="registrationsHeading"></section>
       <section class="admin-view" data-view="learning" aria-labelledby="learningHeading"></section>
+      <section class="admin-view" data-view="quizzes" aria-labelledby="quizzesHeading"></section>
       <section class="admin-view" data-view="resources" aria-labelledby="resourcesHeading"></section>
       <section class="admin-view" data-view="games" aria-labelledby="gamesHeading"></section>
       <section class="admin-view" data-view="projects" aria-labelledby="projectsHeading"></section>
+      <section class="admin-view" data-view="initiatives" aria-labelledby="initiativesHeading"></section>
       <section class="admin-view" data-view="analytics" aria-labelledby="analyticsHeading"></section>
     </main>
   </div>
@@ -117,6 +123,7 @@
   <div class="admin-toast" id="adminToast" role="status" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="js/i18n.js"></script>
   <script src="js/main.js"></script>
   <script src="js/admin.js"></script>
 </body>

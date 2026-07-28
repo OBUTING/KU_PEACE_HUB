@@ -1,0 +1,155 @@
+// Public News & Events feed. Reads published items from /api/content and
+// lets visitors register for events via /api/events/register — both on
+// this project's own backend (see backend/server.js).
+
+(function () {
+  "use strict";
+
+  const grid = document.getElementById("feedGrid");
+  const loading = document.getElementById("feedLoading");
+  const filters = document.getElementById("feedFilters");
+  if (!grid) return;
+
+  let items = [];
+  let activeFilter = "all";
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, (ch) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+    })[ch]);
+  }
+
+  function formatEventDate(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function cardMarkup(item) {
+    const isEvent = item.type === "event";
+    const icon = isEvent ? "fa-calendar-days" : "fa-newspaper";
+    const tag = isEvent ? "Event" : "News";
+    const metaLines = [];
+    if (isEvent && item.eventAt) metaLines.push(`<div><i class="fa-regular fa-clock"></i>${escapeHtml(formatEventDate(item.eventAt))}</div>`);
+    if (isEvent && item.location) metaLines.push(`<div><i class="fa-solid fa-location-dot"></i>${escapeHtml(item.location)}</div>`);
+
+    return `
+      <article class="entry-card" data-id="${escapeHtml(item.id)}">
+        <div class="entry-card-top">
+          <span class="entry-icon"><i class="fa-solid ${icon}"></i></span>
+          <div>
+            <span class="entry-tag">${tag}</span>
+            <h3>${escapeHtml(item.title)}</h3>
+          </div>
+        </div>
+        <p class="entry-desc">${escapeHtml(item.summary || "")}</p>
+        ${metaLines.length ? `<div class="entry-meta">${metaLines.join("")}</div>` : ""}
+        ${isEvent ? `
+          <button type="button" class="entry-primary-btn" data-action="toggle-register">Register</button>
+          <form class="register-panel" data-role="register-form">
+            <input type="text" name="fullName" placeholder="Your full name" required>
+            <input type="email" name="email" placeholder="Email address">
+            <input type="tel" name="phone" placeholder="Phone number">
+            <textarea name="notes" rows="2" placeholder="Anything we should know? (optional)"></textarea>
+            <button type="submit" class="entry-primary-btn">Confirm registration</button>
+            <p class="register-success" hidden>You're on the list. See you there!</p>
+            <p class="register-error" hidden></p>
+          </form>
+        ` : ""}
+      </article>
+    `;
+  }
+
+  function render() {
+    const filtered = activeFilter === "all" ? items : items.filter((item) => item.type === activeFilter);
+    if (!filtered.length) {
+      grid.innerHTML = '<div class="list-empty">Nothing here yet — check back soon.</div>';
+      return;
+    }
+    grid.innerHTML = filtered.map(cardMarkup).join("");
+  }
+
+  grid.addEventListener("click", (event) => {
+    const btn = event.target.closest('[data-action="toggle-register"]');
+    if (!btn) return;
+    const panel = btn.nextElementSibling;
+    if (panel) panel.classList.toggle("is-open");
+  });
+
+  grid.addEventListener("submit", async (event) => {
+    const form = event.target.closest('[data-role="register-form"]');
+    if (!form) return;
+    event.preventDefault();
+
+    const card = form.closest(".entry-card");
+    const item = items.find((entry) => entry.id === card.dataset.id);
+    const successEl = form.querySelector(".register-success");
+    const errorEl = form.querySelector(".register-error");
+    successEl.hidden = true;
+    errorEl.hidden = true;
+
+    const payload = {
+      eventTitle: item ? item.title : "",
+      fullName: form.fullName.value.trim(),
+      email: form.email.value.trim(),
+      phone: form.phone.value.trim(),
+      notes: form.notes.value.trim(),
+    };
+
+    if (!payload.fullName) {
+      errorEl.textContent = "Enter your name to register.";
+      errorEl.hidden = false;
+      return;
+    }
+
+    const submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    try {
+      const res = await fetch("/api/events/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json();
+      if (!res.ok || data.ok === false) throw new Error(data.error || "Something went wrong. Please try again.");
+      form.reset();
+      successEl.hidden = false;
+      if (window.cgToast) window.cgToast("You're registered — see you there!");
+    } catch (err) {
+      errorEl.textContent = err.message;
+      errorEl.hidden = false;
+    } finally {
+      submitBtn.disabled = false;
+    }
+  });
+
+  if (filters) {
+    filters.addEventListener("click", (event) => {
+      const btn = event.target.closest(".list-filter-btn");
+      if (!btn) return;
+      activeFilter = btn.dataset.filter;
+      filters.querySelectorAll(".list-filter-btn").forEach((el) => el.classList.toggle("is-active", el === btn));
+      render();
+    });
+  }
+
+  async function load() {
+    try {
+      const res = await fetch("/api/content");
+      const data = await res.json();
+      if (data.ok) {
+        items = data.content;
+        render();
+      } else {
+        throw new Error(data.error || "Could not load updates.");
+      }
+    } catch (err) {
+      grid.innerHTML = `<div class="list-empty">Could not reach the server. Is the backend running?</div>`;
+    } finally {
+      if (loading) loading.remove();
+    }
+  }
+
+  load();
+})();

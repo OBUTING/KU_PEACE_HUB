@@ -308,3 +308,45 @@ footer.cg-footer .copyright { border-top: 1px solid rgba(255,255,255,0.12); marg
   section { padding: 40px 0; }
   .page-hero { padding: 56px 0 40px; }
 }
+
+/* Language switcher (English / Swahili) — mounted by js/i18n.js into a
+   #langSwitcherSlot if the page provides one, otherwise appended to the
+   main navbar link list. */
+.lang-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 999px;
+  padding: 3px;
+  margin-left: 8px;
+}
+
+.lang-toggle-btn {
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  padding: 5px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+  opacity: 0.65;
+}
+
+.lang-toggle-btn:hover { opacity: 1; }
+
+.lang-toggle-btn.active {
+  background: var(--accent, #4F6F52);
+  color: #fff;
+  opacity: 1;
+}
+
+.navbar-nav .nav-item .lang-toggle { margin: 4px 0; }
+
+@media (max-width: 991px) {
+  .navbar-nav .nav-item .lang-toggle { margin: 8px 0; }
+}
