@@ -62,7 +62,7 @@ html, body {
   background: linear-gradient(180deg, var(--clay-soft) 0%, var(--clay) 100%);
 }
 
-/* ---------- back-to-site bar (added for Common Ground integration) ---------- */
+/* ---------- back-to-site bar (added for PEACE HUB integration) ---------- */
 .game-topbar {
   background: var(--indigo-dusk);
   text-align: center;

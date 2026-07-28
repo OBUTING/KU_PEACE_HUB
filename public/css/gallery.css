@@ -1,0 +1,113 @@
+/* Gallery-specific additions — reuses the same variables and card patterns
+   already defined for list-grid / entry-card in public-lists.css, so link
+   this file *after* public-lists.css. */
+
+.gallery-section {
+  margin-top: 42px;
+  padding-bottom: 30px;
+}
+
+.gallery-section .section-heading {
+  margin-bottom: 18px;
+}
+
+.gallery-section h2 {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  margin-bottom: 6px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.photo-card {
+  background: #fff;
+  border-radius: var(--radius);
+  border: 1px solid rgba(38, 38, 32, 0.06);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  background: var(--cream);
+}
+
+.photo-caption {
+  padding: 10px 14px 14px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.photo-caption .photo-date {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+/* Admin-only additions */
+.admin-key-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.admin-key-bar input[type="password"] {
+  flex: 1;
+  min-width: 220px;
+  border: 1.5px solid var(--tan);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+}
+
+.photo-upload-form {
+  display: grid;
+  gap: 10px;
+  max-width: 480px;
+  margin-bottom: 30px;
+  padding: 18px;
+  border: 1px solid rgba(38, 38, 32, 0.08);
+  border-radius: var(--radius);
+  background: var(--cream);
+}
+
+.photo-upload-form label {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.photo-upload-form input[type="text"] {
+  border: 1.5px solid var(--tan);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  font-family: var(--font-body);
+  font-size: 0.88rem;
+}
+
+.photo-remove-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  border: none;
+  border-radius: 999px;
+  background: var(--danger);
+  color: #fff;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 5px 10px;
+  cursor: pointer;
+}

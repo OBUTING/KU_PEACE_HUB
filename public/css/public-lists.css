@@ -135,6 +135,59 @@
   margin-top: 8px;
 }
 
+/* --- Gallery section (merged from gallery.css) --- */
+.gallery-section {
+  margin-top: 42px;
+  padding-bottom: 30px;
+}
+
+.gallery-section .section-heading {
+  margin-bottom: 18px;
+}
+
+.gallery-section h2 {
+  font-family: var(--font-display);
+  font-size: 1.7rem;
+  margin-bottom: 6px;
+}
+
+.photo-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 18px;
+}
+
+.photo-card {
+  background: #fff;
+  border-radius: var(--radius);
+  border: 1px solid rgba(38, 38, 32, 0.06);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  position: relative;
+}
+
+.photo-card img {
+  width: 100%;
+  height: 200px;
+  object-fit: cover;
+  display: block;
+  background: var(--cream);
+}
+
+.photo-caption {
+  padding: 10px 14px 14px;
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+}
+
+.photo-caption .photo-date {
+  display: block;
+  font-size: 0.72rem;
+  color: var(--ink-soft);
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
 /* --- Quiz-taking flow --- */
 .quiz-modal-backdrop {
   position: fixed;

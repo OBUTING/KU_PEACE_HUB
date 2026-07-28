@@ -1,5 +1,5 @@
 /* --------------------------------------------------------------------------
-   Common Ground Admin Dashboard
+   PEACE HUB Admin Dashboard
    A local-first admin workspace. It keeps drafts and management actions in
    localStorage, and transparently reads protected server data when an
    ADMIN_KEY has been configured for the current browser.
@@ -92,7 +92,7 @@
     ],
     games: [
       { id: "g-1", title: "Peace Bridge", description: "A choice-led story about rebuilding trust across three shared spaces.", audience: "13–25 years", status: "Published", plays: 1268, updated: "2026-07-22" },
-      { id: "g-2", title: "Common Ground Cards", description: "Short scenario cards that help groups practise empathy and listening.", audience: "Facilitator groups", status: "Published", plays: 684, updated: "2026-07-18" },
+      { id: "g-2", title: "PEACE HUB Cards", description: "Short scenario cards that help groups practise empathy and listening.", audience: "Facilitator groups", status: "Published", plays: 684, updated: "2026-07-18" },
       { id: "g-3", title: "The Ripple Challenge", description: "A cooperative micro-game about how small choices travel through a community.", audience: "13–18 years", status: "Draft", plays: 0, updated: "2026-07-12" },
     ],
     projects: [
@@ -183,7 +183,7 @@
   }
 
   function initials(name) {
-    return String(name || "Common Ground")
+    return String(name || "PEACE HUB")
       .split(/\s+/)
       .filter(Boolean)
       .slice(0, 2)

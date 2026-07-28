@@ -1,7 +1,7 @@
 {
   "name": "ku-peace-hub-backend",
   "version": "1.0.0",
-  "description": "Single Express backend for the Common Ground / KU Peace Hub site — serves the static front end and the signatures, pledges, and auth APIs.",
+  "description": "Single Express backend for the PEACE HUB / KU Peace Hub site — serves the static front end and the signatures, pledges, and auth APIs.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

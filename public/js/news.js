@@ -8,6 +8,8 @@
   const grid = document.getElementById("feedGrid");
   const loading = document.getElementById("feedLoading");
   const filters = document.getElementById("feedFilters");
+  const galleryStatusEl = document.getElementById("gallery-status");
+  const photoGridEl = document.getElementById("photo-grid");
   if (!grid) return;
 
   let items = [];
@@ -24,6 +26,13 @@
     const date = new Date(iso);
     if (Number.isNaN(date.getTime())) return "";
     return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  function formatGalleryDate(iso) {
+    if (!iso) return "";
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
   }
 
   function cardMarkup(item) {
@@ -151,5 +160,49 @@
     }
   }
 
+  async function loadGallery() {
+    if (!galleryStatusEl || !photoGridEl) return;
+
+    try {
+      const res = await fetch("/api/gallery");
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+
+      if (!data.images || data.images.length === 0) {
+        galleryStatusEl.textContent = "No photos yet. Check back soon.";
+        return;
+      }
+
+      galleryStatusEl.remove();
+
+      data.images.forEach((photo) => {
+        const card = document.createElement("div");
+        card.className = "photo-card";
+
+        const img = document.createElement("img");
+        img.src = `/api/gallery/${photo.id}/image`;
+        img.alt = photo.caption || photo.filename;
+        img.loading = "lazy";
+        card.appendChild(img);
+
+        if (photo.caption || photo.createdAt) {
+          const caption = document.createElement("div");
+          caption.className = "photo-caption";
+          caption.innerHTML = `
+            ${photo.caption ? photo.caption : ""}
+            <span class="photo-date">${formatGalleryDate(photo.createdAt)}</span>
+          `;
+          card.appendChild(caption);
+        }
+
+        photoGridEl.appendChild(card);
+      });
+    } catch (err) {
+      console.error(err);
+      galleryStatusEl.textContent = "Could not load the gallery right now.";
+    }
+  }
+
   load();
+  loadGallery();
 })();

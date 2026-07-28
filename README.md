@@ -1,4 +1,4 @@
-# Common Ground — KU Peace Hub
+# PEACE HUB — KU Peace Hub
 
 One unified project combining the previously separate pages (home, what-breaks-peace,
 youth pledge, signature map, login) into a single site with one Express backend,
@@ -35,7 +35,7 @@ peace-hub/
 ```
 
 Bootstrap 5 (via CDN) drives the navbar, grid, and form primitives; the
-custom CSS layers the Common Ground look (Fraunces + Karla type, sage/gold
+custom CSS layers the PEACE HUB look (Fraunces + Karla type, sage/gold
 palette) on top.
 
 ## Run it

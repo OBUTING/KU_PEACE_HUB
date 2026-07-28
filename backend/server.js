@@ -1,5 +1,5 @@
 /**
- * Common Ground / KU Peace Hub — single backend.
+ * PEACE HUB / KU Peace Hub — single backend.
  *
  * Serves the static front end from ../public and exposes three small JSON
  * APIs backed by a Postgres database:
@@ -32,7 +32,10 @@ const PORT = process.env.PORT || 3000;
 // public-facing number.
 const SIGNATURE_COUNT_OFFSET = 10000;
 
-app.use(express.json());
+// Default express.json() limit is 100kb — far too small for base64-encoded
+// photo uploads (a 5MB image becomes ~6.7MB of JSON). 10mb covers the
+// gallery's 5MB-per-photo cap with headroom for the rest of the JSON payload.
+app.use(express.json({ limit: "10mb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Google Sign-In — set GOOGLE_CLIENT_ID to the same Client ID used in
@@ -380,6 +383,21 @@ async function initDb() {
       updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
       CONSTRAINT quizzes_status_check
         CHECK (status IN ('draft', 'published', 'archived'))
+    );
+  `);
+
+  // Gallery photos — uploaded directly (not linked by URL like content_items),
+  // so the actual bytes live in image_data. Kept as its own table rather than
+  // folded into ADMIN_COLLECTIONS since it needs binary handling the generic
+  // text-field system above doesn't support.
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gallery_images (
+      id UUID PRIMARY KEY,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      image_data BYTEA NOT NULL,
+      caption TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
 
@@ -1721,11 +1739,115 @@ app.get("/api/reports", requireAdmin, async (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Gallery (public/gallery.html + public/admin-gallery.html)
+//
+// Photos are uploaded as base64 from the browser and stored as raw bytes
+// (BYTEA) in Postgres — simplest option with no extra storage service to
+// configure. Fine for a modest photo gallery; if this grows into hundreds of
+// high-res photos, consider moving to object storage (S3, Cloudinary, etc.)
+// later, since Postgres row storage isn't the cheapest place for lots of
+// large binary blobs.
+// ---------------------------------------------------------------------------
+
+const GALLERY_MAX_BYTES = 5 * 1024 * 1024; // 5MB per photo
+
+// Public — list gallery photos. Metadata only; actual bytes are fetched
+// separately per photo by /api/gallery/:id/image so this list stays small.
+app.get("/api/gallery", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, filename, caption, created_at AS "createdAt"
+       FROM gallery_images ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json({ ok: true, images: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load the gallery." });
+  }
+});
+
+// Public — serve one photo's actual image bytes.
+app.get("/api/gallery/:id/image", async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).send("Invalid image id.");
+  try {
+    const { rows } = await pool.query(
+      `SELECT mime_type AS "mimeType", image_data AS "imageData"
+       FROM gallery_images WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).send("Image not found.");
+    res.set("Content-Type", rows[0].mimeType);
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(rows[0].imageData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Could not load image.");
+  }
+});
+
+// Admin — upload a new photo.
+// Body: { filename, mimeType, caption, dataBase64 }
+// dataBase64 must NOT include the "data:image/...;base64," prefix — strip it
+// client-side before sending (see public/js/admin-gallery.js).
+app.post("/api/gallery", requireAdmin, async (req, res) => {
+  const { filename, mimeType, caption, dataBase64 } = req.body || {};
+
+  if (!filename || !mimeType || !dataBase64) {
+    return res.status(400).json({ ok: false, error: "filename, mimeType, and dataBase64 are required." });
+  }
+  if (!String(mimeType).startsWith("image/")) {
+    return res.status(400).json({ ok: false, error: "Only image uploads are allowed." });
+  }
+
+  let buffer;
+  try {
+    buffer = Buffer.from(dataBase64, "base64");
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: "Could not decode image data." });
+  }
+  if (buffer.length > GALLERY_MAX_BYTES) {
+    return res.status(413).json({ ok: false, error: "Image is too large. Max 5MB per photo." });
+  }
+
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO gallery_images (id, filename, mime_type, image_data, caption)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING id, filename, caption, created_at AS "createdAt"`,
+      [
+        crypto.randomUUID(),
+        cleanAdminText(filename, 255),
+        cleanAdminText(mimeType, 100),
+        buffer,
+        cleanAdminText(caption, 300),
+      ]
+    );
+    res.status(201).json({ ok: true, image: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save the photo." });
+  }
+});
+
+// Admin — delete a photo.
+app.delete("/api/gallery/:id", requireAdmin, async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid image id." });
+  try {
+    const { rowCount } = await pool.query(`DELETE FROM gallery_images WHERE id = $1`, [req.params.id]);
+    if (!rowCount) return res.status(404).json({ ok: false, error: "Photo not found." });
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not delete the photo." });
+  }
+});
+
+// ---------------------------------------------------------------------------
 
 initDb()
   .then(() => {
     app.listen(PORT, () => {
-      console.log(`Common Ground / KU Peace Hub running at http://localhost:${PORT}`);
+      console.log(`PEACE HUB / KU Peace Hub running at http://localhost:${PORT}`);
     });
   })
   .catch((err) => {

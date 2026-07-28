@@ -401,7 +401,7 @@
       "pt.principle4": "Be Open",
       "pt.principle5": "Stay Calm",
       "pt.principle6": "Ask Questions",
-      "pt.principle7": "Find Common Ground",
+      "pt.principle7": "Find PEACE HUB",
       "pt.principle8": "Be Patient",
       "pt.principle9": "Avoid Blame",
       "pt.principle10": "Build Peace",
