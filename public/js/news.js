@@ -175,27 +175,106 @@
 
       galleryStatusEl.remove();
 
-      data.images.forEach((photo) => {
-        const card = document.createElement("div");
-        card.className = "photo-card";
+      const groups = data.images.reduce((acc, photo) => {
+        const groupTitle = String(photo.title || "").trim() || "General gallery";
+        if (!acc[groupTitle]) acc[groupTitle] = [];
+        acc[groupTitle].push(photo);
+        return acc;
+      }, {});
 
-        const img = document.createElement("img");
-        img.src = `/api/gallery/${photo.id}/image`;
-        img.alt = photo.caption || photo.filename;
-        img.loading = "lazy";
-        card.appendChild(img);
+      Object.entries(groups).forEach(([groupTitle, photos]) => {
+        const section = document.createElement("section");
+        section.className = "gallery-group";
 
-        if (photo.caption || photo.createdAt) {
-          const caption = document.createElement("div");
-          caption.className = "photo-caption";
-          caption.innerHTML = `
-            ${photo.caption ? photo.caption : ""}
-            <span class="photo-date">${formatGalleryDate(photo.createdAt)}</span>
-          `;
-          card.appendChild(caption);
+        const heading = document.createElement("div");
+        heading.className = "gallery-group-heading";
+        heading.innerHTML = `<h3>${escapeHtml(groupTitle)}</h3><span>${photos.length} photo${photos.length === 1 ? "" : "s"}</span>`;
+        section.appendChild(heading);
+
+        if (photos.length >= 3) {
+          const carousel = document.createElement("div");
+          carousel.className = "gallery-carousel";
+
+          const track = document.createElement("div");
+          track.className = "gallery-carousel-track";
+
+          const dots = document.createElement("div");
+          dots.className = "gallery-carousel-dots";
+
+          const showSlide = (index) => {
+            const current = (index + photos.length) % photos.length;
+            Array.from(track.children).forEach((slide, slideIndex) => slide.classList.toggle("is-active", slideIndex === current));
+            Array.from(dots.children).forEach((dot, dotIndex) => dot.classList.toggle("is-active", dotIndex === current));
+          };
+
+          photos.forEach((photo, index) => {
+            const slide = document.createElement("div");
+            slide.className = `gallery-carousel-slide${index === 0 ? " is-active" : ""}`;
+
+            const card = document.createElement("div");
+            card.className = "photo-card";
+
+            const img = document.createElement("img");
+            img.src = `/api/gallery/${photo.id}/image`;
+            img.alt = photo.caption || photo.filename;
+            img.loading = "lazy";
+            card.appendChild(img);
+
+            if (photo.caption || photo.createdAt) {
+              const caption = document.createElement("div");
+              caption.className = "photo-caption";
+              caption.innerHTML = `
+                ${photo.caption ? escapeHtml(photo.caption) : ""}
+                <span class="photo-date">${formatGalleryDate(photo.createdAt)}</span>
+              `;
+              card.appendChild(caption);
+            }
+
+            slide.appendChild(card);
+            track.appendChild(slide);
+
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.className = `gallery-carousel-dot${index === 0 ? " is-active" : ""}`;
+            dot.setAttribute("aria-label", `Show photo ${index + 1}`);
+            dot.addEventListener("click", () => showSlide(index));
+            dots.appendChild(dot);
+          });
+
+          carousel.appendChild(track);
+          carousel.appendChild(dots);
+          section.appendChild(carousel);
+          showSlide(0);
+          window.setInterval(() => showSlide((Array.from(track.children).findIndex((item) => item.classList.contains("is-active")) + 1) % photos.length), 5000);
+        } else {
+          const items = document.createElement("div");
+          items.className = "gallery-group-items";
+          photos.forEach((photo) => {
+            const card = document.createElement("div");
+            card.className = "photo-card";
+
+            const img = document.createElement("img");
+            img.src = `/api/gallery/${photo.id}/image`;
+            img.alt = photo.caption || photo.filename;
+            img.loading = "lazy";
+            card.appendChild(img);
+
+            if (photo.caption || photo.createdAt) {
+              const caption = document.createElement("div");
+              caption.className = "photo-caption";
+              caption.innerHTML = `
+                ${photo.caption ? escapeHtml(photo.caption) : ""}
+                <span class="photo-date">${formatGalleryDate(photo.createdAt)}</span>
+              `;
+              card.appendChild(caption);
+            }
+
+            items.appendChild(card);
+          });
+          section.appendChild(items);
         }
 
-        photoGridEl.appendChild(card);
+        photoGridEl.appendChild(section);
       });
     } catch (err) {
       console.error(err);

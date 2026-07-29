@@ -492,16 +492,20 @@
           </div>
           <form id="galleryUploadForm" class="gallery-upload-form">
             <div class="row g-3">
-              <div class="col-md-8">
+              <div class="col-md-5">
                 <label class="form-label" for="galleryFileInput">Photo</label>
                 <label class="file-drop" for="galleryFileInput">
                   <span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a photo to upload</b><small>PNG, JPG, WEBP and similar images are supported</small></span>
                   <input id="galleryFileInput" name="galleryFile" type="file" accept="image/*" required>
                 </label>
               </div>
+              <div class="col-md-3">
+                <label class="form-label" for="galleryTitleInput">Title</label>
+                <input class="form-control" id="galleryTitleInput" name="title" type="text" placeholder="e.g. Peace walk">
+              </div>
               <div class="col-md-4">
                 <label class="form-label" for="galleryCaptionInput">Caption</label>
-                <input class="form-control" id="galleryCaptionInput" name="caption" type="text" placeholder="e.g. Peace walk, July 2026">
+                <input class="form-control" id="galleryCaptionInput" name="caption" type="text" placeholder="e.g. July 2026">
               </div>
             </div>
             <div class="d-flex align-items-center gap-2">
@@ -517,6 +521,7 @@
     const saveKeyBtn = document.getElementById("gallerySaveKeyBtn");
     const uploadForm = document.getElementById("galleryUploadForm");
     const fileInput = document.getElementById("galleryFileInput");
+    const titleInput = document.getElementById("galleryTitleInput");
     const captionInput = document.getElementById("galleryCaptionInput");
     const uploadBtn = document.getElementById("galleryUploadBtn");
     const uploadMessage = document.getElementById("galleryUploadMessage");
@@ -552,29 +557,114 @@
         }
 
         status.textContent = `${data.images.length} photo${data.images.length === 1 ? "" : "s"} available.`;
-        data.images.forEach((photo) => {
-          const card = document.createElement("div");
-          card.className = "photo-card";
 
-          const img = document.createElement("img");
-          img.src = `/api/gallery/${photo.id}/image`;
-          img.alt = photo.caption || photo.filename;
-          img.loading = "lazy";
-          card.appendChild(img);
+        const groups = data.images.reduce((acc, photo) => {
+          const groupTitle = String(photo.title || "").trim() || "General gallery";
+          if (!acc[groupTitle]) acc[groupTitle] = [];
+          acc[groupTitle].push(photo);
+          return acc;
+        }, {});
 
-          const removeBtn = document.createElement("button");
-          removeBtn.className = "photo-remove-btn";
-          removeBtn.textContent = "Delete";
-          removeBtn.type = "button";
-          removeBtn.addEventListener("click", () => deletePhoto(photo.id));
-          card.appendChild(removeBtn);
+        Object.entries(groups).forEach(([groupTitle, photos]) => {
+          const section = document.createElement("section");
+          section.className = "gallery-group-section";
 
-          const caption = document.createElement("div");
-          caption.className = "photo-caption";
-          caption.innerHTML = `${photo.caption ? `${escapeHtml(photo.caption)}<br>` : ""}<span class="photo-date">${escapeHtml(formatGalleryDate(photo.createdAt))}</span>`;
-          card.appendChild(caption);
+          const heading = document.createElement("div");
+          heading.className = "gallery-group-heading";
+          heading.innerHTML = `<h3>${escapeHtml(groupTitle)}</h3><span>${photos.length} photo${photos.length === 1 ? "" : "s"}</span>`;
+          section.appendChild(heading);
 
-          grid.appendChild(card);
+          const content = document.createElement("div");
+          content.className = "gallery-group-content";
+
+          if (photos.length >= 3) {
+            const carousel = document.createElement("div");
+            carousel.className = "gallery-carousel";
+
+            const track = document.createElement("div");
+            track.className = "gallery-carousel-track";
+
+            const dots = document.createElement("div");
+            dots.className = "gallery-carousel-dots";
+
+            const showSlide = (index) => {
+              const current = (index + photos.length) % photos.length;
+              Array.from(track.children).forEach((slide, slideIndex) => slide.classList.toggle("is-active", slideIndex === current));
+              Array.from(dots.children).forEach((dot, dotIndex) => dot.classList.toggle("is-active", dotIndex === current));
+            };
+
+            photos.forEach((photo, index) => {
+              const slide = document.createElement("div");
+              slide.className = `gallery-carousel-slide${index === 0 ? " is-active" : ""}`;
+              const card = document.createElement("div");
+              card.className = "photo-card";
+
+              const img = document.createElement("img");
+              img.src = `/api/gallery/${photo.id}/image`;
+              img.alt = photo.caption || photo.filename;
+              img.loading = "lazy";
+              card.appendChild(img);
+
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "photo-remove-btn";
+              removeBtn.textContent = "Delete";
+              removeBtn.type = "button";
+              removeBtn.addEventListener("click", () => deletePhoto(photo.id));
+              card.appendChild(removeBtn);
+
+              const caption = document.createElement("div");
+              caption.className = "photo-caption";
+              caption.innerHTML = `${photo.caption ? `${escapeHtml(photo.caption)}<br>` : ""}<span class="photo-date">${escapeHtml(formatGalleryDate(photo.createdAt))}</span>`;
+              card.appendChild(caption);
+
+              slide.appendChild(card);
+              track.appendChild(slide);
+
+              const dot = document.createElement("button");
+              dot.type = "button";
+              dot.className = `gallery-carousel-dot${index === 0 ? " is-active" : ""}`;
+              dot.setAttribute("aria-label", `Show photo ${index + 1}`);
+              dot.addEventListener("click", () => showSlide(index));
+              dots.appendChild(dot);
+            });
+
+            carousel.appendChild(track);
+            carousel.appendChild(dots);
+            content.appendChild(carousel);
+            showSlide(0);
+            window.setInterval(() => showSlide((Array.from(track.children).findIndex((item) => item.classList.contains("is-active")) + 1) % photos.length), 5000);
+          } else {
+            const items = document.createElement("div");
+            items.className = "gallery-group-items";
+            photos.forEach((photo) => {
+              const card = document.createElement("div");
+              card.className = "photo-card";
+
+              const img = document.createElement("img");
+              img.src = `/api/gallery/${photo.id}/image`;
+              img.alt = photo.caption || photo.filename;
+              img.loading = "lazy";
+              card.appendChild(img);
+
+              const removeBtn = document.createElement("button");
+              removeBtn.className = "photo-remove-btn";
+              removeBtn.textContent = "Delete";
+              removeBtn.type = "button";
+              removeBtn.addEventListener("click", () => deletePhoto(photo.id));
+              card.appendChild(removeBtn);
+
+              const caption = document.createElement("div");
+              caption.className = "photo-caption";
+              caption.innerHTML = `${photo.caption ? `${escapeHtml(photo.caption)}<br>` : ""}<span class="photo-date">${escapeHtml(formatGalleryDate(photo.createdAt))}</span>`;
+              card.appendChild(caption);
+
+              items.appendChild(card);
+            });
+            content.appendChild(items);
+          }
+
+          section.appendChild(content);
+          grid.appendChild(section);
         });
       } catch (err) {
         console.error(err);
@@ -637,6 +727,7 @@
           body: JSON.stringify({
             filename: file.name,
             mimeType: file.type,
+            title: titleInput.value.trim(),
             caption: captionInput.value.trim(),
             dataBase64,
           }),

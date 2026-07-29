@@ -14,8 +14,8 @@
 .hero-wrap {
   position: relative;
   z-index: 1;
-  padding-top: 36px;
-  padding-bottom: 44px;
+  padding-top: 16;
+  padding-bottom: 14px;
 }
 
 .hero-copy h1 {

@@ -396,10 +396,12 @@ async function initDb() {
       filename TEXT NOT NULL,
       mime_type TEXT NOT NULL,
       image_data BYTEA NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
       caption TEXT NOT NULL DEFAULT '',
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     );
   `);
+  await pool.query(`ALTER TABLE gallery_images ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS initiatives (
@@ -1756,7 +1758,7 @@ const GALLERY_MAX_BYTES = 5 * 1024 * 1024; // 5MB per photo
 app.get("/api/gallery", async (req, res) => {
   try {
     const { rows } = await pool.query(
-      `SELECT id, filename, caption, created_at AS "createdAt"
+      `SELECT id, filename, title, caption, created_at AS "createdAt"
        FROM gallery_images ORDER BY created_at DESC LIMIT 200`
     );
     res.json({ ok: true, images: rows });
@@ -1790,7 +1792,7 @@ app.get("/api/gallery/:id/image", async (req, res) => {
 // dataBase64 must NOT include the "data:image/...;base64," prefix — strip it
 // client-side before sending (see public/js/admin-gallery.js).
 app.post("/api/gallery", requireAdmin, async (req, res) => {
-  const { filename, mimeType, caption, dataBase64 } = req.body || {};
+  const { filename, mimeType, title, caption, dataBase64 } = req.body || {};
 
   if (!filename || !mimeType || !dataBase64) {
     return res.status(400).json({ ok: false, error: "filename, mimeType, and dataBase64 are required." });
@@ -1811,14 +1813,15 @@ app.post("/api/gallery", requireAdmin, async (req, res) => {
 
   try {
     const { rows } = await pool.query(
-      `INSERT INTO gallery_images (id, filename, mime_type, image_data, caption)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, filename, caption, created_at AS "createdAt"`,
+      `INSERT INTO gallery_images (id, filename, mime_type, image_data, title, caption)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, filename, title, caption, created_at AS "createdAt"`,
       [
         crypto.randomUUID(),
         cleanAdminText(filename, 255),
         cleanAdminText(mimeType, 100),
         buffer,
+        cleanAdminText(title, 255),
         cleanAdminText(caption, 300),
       ]
     );
