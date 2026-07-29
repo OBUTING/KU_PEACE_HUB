@@ -495,8 +495,8 @@
               <div class="col-md-5">
                 <label class="form-label" for="galleryFileInput">Photo</label>
                 <label class="file-drop" for="galleryFileInput">
-                  <span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose a photo to upload</b><small>PNG, JPG, WEBP and similar images are supported</small></span>
-                  <input id="galleryFileInput" name="galleryFile" type="file" accept="image/*" required>
+                  <span><i class="fa-solid fa-cloud-arrow-up"></i><b>Choose photos to upload</b><small>PNG, JPG, WEBP and similar images are supported. You can select several files or paste images directly.</small></span>
+                  <input id="galleryFileInput" name="galleryFile" type="file" accept="image/*" multiple required>
                 </label>
               </div>
               <div class="col-md-3">
@@ -534,6 +534,31 @@
       setGalleryAdminKey(key);
       keyInput.value = getGalleryAdminKey();
     };
+
+    function getSelectedFiles() {
+      return Array.from(fileInput?.files || []);
+    }
+
+    function updateSelectedFileStatus() {
+      const files = getSelectedFiles();
+      if (!files.length) {
+        uploadMessage.textContent = "Choose one or more photos to upload.";
+        return;
+      }
+      uploadMessage.textContent = `${files.length} photo${files.length === 1 ? "" : "s"} selected.`;
+    }
+
+    function addFilesToPicker(files) {
+      if (!fileInput) return;
+      const current = getSelectedFiles();
+      const incoming = files.filter((file) => file && file.type?.startsWith("image/"));
+      if (!incoming.length) return;
+      const dataTransfer = new DataTransfer();
+      current.forEach((file) => dataTransfer.items.add(file));
+      incoming.forEach((file) => dataTransfer.items.add(file));
+      fileInput.files = dataTransfer.files;
+      updateSelectedFileStatus();
+    }
 
     saveKeyBtn?.addEventListener("click", () => {
       setKey(keyInput.value);
@@ -695,6 +720,16 @@
       }
     }
 
+    fileInput?.addEventListener("change", updateSelectedFileStatus);
+
+    uploadForm.addEventListener("paste", (event) => {
+      const pastedFiles = Array.from(event.clipboardData?.files || []).filter((file) => file?.type?.startsWith("image/"));
+      if (!pastedFiles.length) return;
+      event.preventDefault();
+      addFilesToPicker(pastedFiles);
+      uploadMessage.textContent = `${getSelectedFiles().length} photo${getSelectedFiles().length === 1 ? "" : "s"} ready to upload.`;
+    });
+
     uploadForm.addEventListener("submit", async (event) => {
       event.preventDefault();
       const key = getGalleryAdminKey();
@@ -703,13 +738,15 @@
         return;
       }
 
-      const file = fileInput?.files?.[0];
-      if (!file) {
-        uploadMessage.textContent = "Choose a photo to upload.";
+      const files = getSelectedFiles();
+      if (!files.length) {
+        uploadMessage.textContent = "Choose one or more photos to upload.";
         return;
       }
-      if (file.size > 5 * 1024 * 1024) {
-        uploadMessage.textContent = "File is too large (max 5MB).";
+
+      const oversized = files.find((file) => file.size > 5 * 1024 * 1024);
+      if (oversized) {
+        uploadMessage.textContent = "One or more files are too large (max 5MB each).";
         return;
       }
 
@@ -717,25 +754,29 @@
       uploadMessage.textContent = "Uploading…";
 
       try {
-        const dataBase64 = await fileToBase64(file);
-        const res = await fetch("/api/gallery", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-admin-key": key,
-          },
-          body: JSON.stringify({
-            filename: file.name,
-            mimeType: file.type,
-            title: titleInput.value.trim(),
-            caption: captionInput.value.trim(),
-            dataBase64,
-          }),
-        });
-        const data = await res.json();
-        if (!res.ok || !data.ok) throw new Error(data.error || "Upload failed.");
+        for (let index = 0; index < files.length; index += 1) {
+          const file = files[index];
+          uploadMessage.textContent = `Uploading ${index + 1}/${files.length}: ${file.name}`;
+          const dataBase64 = await fileToBase64(file);
+          const res = await fetch("/api/gallery", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "x-admin-key": key,
+            },
+            body: JSON.stringify({
+              filename: file.name,
+              mimeType: file.type,
+              title: titleInput.value.trim(),
+              caption: captionInput.value.trim(),
+              dataBase64,
+            }),
+          });
+          const data = await res.json();
+          if (!res.ok || !data.ok) throw new Error(data.error || "Upload failed.");
+        }
 
-        uploadMessage.textContent = "Uploaded!";
+        uploadMessage.textContent = `Uploaded ${files.length} photo${files.length === 1 ? "" : "s"}!`;
         uploadForm.reset();
         reloadGallery();
       } catch (err) {
