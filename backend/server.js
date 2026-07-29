@@ -97,6 +97,14 @@ function getAuthToken(req) {
   return req.get("x-auth-token") || "";
 }
 
+function requireDb(res) {
+  if (!pool) {
+    res.status(503).json({ ok: false, error: "Database is not configured on this server." });
+    return false;
+  }
+  return true;
+}
+
 async function requireAuth(req, res, next) {
   const token = getAuthToken(req);
   if (!token) {
@@ -156,9 +164,8 @@ async function requireAdmin(req, res, next) {
 // ---------------------------------------------------------------------------
 
 if (!process.env.DATABASE_URL) {
-  console.error(
-    "Missing DATABASE_URL environment variable. Set it to your Postgres connection string " +
-      "(e.g. from Render's Postgres dashboard) before starting the server."
+  console.warn(
+    "Missing DATABASE_URL environment variable. The AI mentor and static pages will still run, but database-backed features will be unavailable until it's configured."
   );
 }
 
@@ -167,12 +174,17 @@ if (!process.env.DATABASE_URL) {
 // Postgres instance that doesn't use SSL.
 const useSSL = process.env.PGSSLMODE !== "disable";
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: useSSL ? { rejectUnauthorized: false } : false,
-});
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: useSSL ? { rejectUnauthorized: false } : false,
+    })
+  : null;
 
 async function initDb() {
+  if (!pool) {
+    return;
+  }
   await pool.query(`
     CREATE TABLE IF NOT EXISTS signatures (
       id UUID PRIMARY KEY,
@@ -1580,8 +1592,8 @@ app.get("/api/auth/me", requireAuth, (req, res) => {
 // ---------------------------------------------------------------------------
 // Peace Guide — AI chat assistant (public/peace-guide.html)
 //
-// Calls the Anthropic API directly over Node's built-in `https` module —
-// no SDK dependency needed. Requires an ANTHROPIC_API_KEY environment
+// Calls the Groq API directly over Node's built-in `https` module —
+// no SDK dependency needed. Requires a GROQ_API_KEY environment
 // variable; the key is never sent to the browser, only used server-side.
 // ---------------------------------------------------------------------------
 
@@ -1644,24 +1656,22 @@ function sanitizePeaceGuideMessages(rawMessages) {
   return cleaned;
 }
 
-function callClaude(messages) {
+function callGroq(messages) {
   return new Promise((resolve, reject) => {
     const payload = JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 1000,
-      system: PEACE_GUIDE_SYSTEM_PROMPT,
-      messages,
+      model: "openai/gpt-oss-120b",
+      max_tokens: 800,
+      messages: [{ role: "system", content: PEACE_GUIDE_SYSTEM_PROMPT }, ...messages],
     });
 
     const options = {
-      hostname: "api.anthropic.com",
-      path: "/v1/messages",
+      hostname: "api.groq.com",
+      path: "/openai/v1/chat/completions",
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         "Content-Length": Buffer.byteLength(payload),
-        "x-api-key": process.env.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
+        Authorization: `Bearer ${process.env.GROQ_API_KEY}`,
       },
     };
 
@@ -1672,7 +1682,7 @@ function callClaude(messages) {
         try {
           const parsed = JSON.parse(body);
           if (apiRes.statusCode >= 400) {
-            reject(new Error(parsed?.error?.message || `Anthropic API error ${apiRes.statusCode}`));
+            reject(new Error(parsed?.error?.message || `Groq API error ${apiRes.statusCode}`));
             return;
           }
           resolve(parsed);
@@ -1689,8 +1699,8 @@ function callClaude(messages) {
 }
 
 app.post("/api/peace-guide", async (req, res) => {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return res.status(500).json({ error: "Server is not configured with an API key." });
+  if (!process.env.GROQ_API_KEY) {
+    return res.status(500).json({ error: "Server is not configured with a Groq API key." });
   }
 
   const ip = getClientIp(req);
@@ -1708,11 +1718,8 @@ app.post("/api/peace-guide", async (req, res) => {
   }
 
   try {
-    const apiResponse = await callClaude(messages);
-    const text = (apiResponse.content || [])
-      .filter((block) => block.type === "text")
-      .map((block) => block.text)
-      .join("\n");
+    const apiResponse = await callGroq(messages);
+    const text = apiResponse?.choices?.[0]?.message?.content || "";
     res.json({ reply: text || "I couldn't generate a response — please try again." });
   } catch (err) {
     console.error(err);
