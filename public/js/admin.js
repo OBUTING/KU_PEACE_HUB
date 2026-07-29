@@ -513,6 +513,60 @@
               <span id="galleryUploadMessage" class="gallery-status"></span>
             </div>
           </form>
+          <div class="gallery-subsection">
+            <h3 class="gallery-subsection-title">Videos</h3>
+            <div class="gallery-upload-form compact">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="galleryVideoFileInput">Video file</label>
+                  <label class="file-drop" for="galleryVideoFileInput">
+                    <span><i class="fa-solid fa-video"></i><b>Choose a video</b><small>MP4, WEBM and similar video files are supported.</small></span>
+                    <input id="galleryVideoFileInput" name="galleryVideo" type="file" accept="video/*" required>
+                  </label>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="galleryVideoTitleInput">Title</label>
+                  <input class="form-control" id="galleryVideoTitleInput" name="videoTitle" type="text" placeholder="e.g. Peace walk">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="galleryVideoCaptionInput">Caption</label>
+                  <input class="form-control" id="galleryVideoCaptionInput" name="videoCaption" type="text" placeholder="Short description">
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn-admin-primary" id="galleryVideoUploadBtn" type="button">Upload video</button>
+                <span id="galleryVideoUploadMessage" class="gallery-status"></span>
+              </div>
+            </div>
+            <div id="galleryVideoGrid" class="photo-grid"></div>
+          </div>
+          <div class="gallery-subsection">
+            <h3 class="gallery-subsection-title">Downloadable media</h3>
+            <div class="gallery-upload-form compact">
+              <div class="row g-3">
+                <div class="col-md-6">
+                  <label class="form-label" for="galleryDownloadFileInput">Downloadable file</label>
+                  <label class="file-drop" for="galleryDownloadFileInput">
+                    <span><i class="fa-solid fa-download"></i><b>Choose a file to share</b><small>PDF, ZIP, DOCX and similar files are supported.</small></span>
+                    <input id="galleryDownloadFileInput" name="galleryDownload" type="file" required>
+                  </label>
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="galleryDownloadTitleInput">Title</label>
+                  <input class="form-control" id="galleryDownloadTitleInput" name="downloadTitle" type="text" placeholder="e.g. Toolkit">
+                </div>
+                <div class="col-md-3">
+                  <label class="form-label" for="galleryDownloadCaptionInput">Caption</label>
+                  <input class="form-control" id="galleryDownloadCaptionInput" name="downloadCaption" type="text" placeholder="Short description">
+                </div>
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <button class="btn-admin-primary" id="galleryDownloadUploadBtn" type="button">Upload download</button>
+                <span id="galleryDownloadUploadMessage" class="gallery-status"></span>
+              </div>
+            </div>
+            <div id="galleryDownloadGrid" class="photo-grid"></div>
+          </div>
           <div id="galleryGrid" class="photo-grid"></div>
         </div>
       </article>`);
@@ -527,6 +581,12 @@
     const uploadMessage = document.getElementById("galleryUploadMessage");
     const grid = document.getElementById("galleryGrid");
     const status = document.getElementById("galleryStatus");
+    const videoUploadBtn = document.getElementById("galleryVideoUploadBtn");
+    const videoUploadMessage = document.getElementById("galleryVideoUploadMessage");
+    const videoGrid = document.getElementById("galleryVideoGrid");
+    const downloadUploadBtn = document.getElementById("galleryDownloadUploadBtn");
+    const downloadUploadMessage = document.getElementById("galleryDownloadUploadMessage");
+    const downloadGrid = document.getElementById("galleryDownloadGrid");
 
     if (!keyInput || !uploadForm || !grid || !status) return;
 
@@ -565,6 +625,21 @@
       status.textContent = "Key saved.";
       reloadGallery();
     });
+
+    async function makeUploadRequest(url, payload, messageTarget, successText) {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-admin-key": getGalleryAdminKey(),
+        },
+        body: JSON.stringify(payload),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Upload failed.");
+      messageTarget.textContent = successText;
+      return data;
+    }
 
     async function reloadGallery() {
       grid.innerHTML = "";
@@ -779,6 +854,8 @@
         uploadMessage.textContent = `Uploaded ${files.length} photo${files.length === 1 ? "" : "s"}!`;
         uploadForm.reset();
         reloadGallery();
+        reloadVideos();
+        reloadDownloads();
       } catch (err) {
         uploadMessage.textContent = err.message;
       } finally {
@@ -786,7 +863,193 @@
       }
     });
 
+    async function reloadVideos() {
+      if (!videoGrid) return;
+      videoGrid.innerHTML = "";
+      try {
+        const res = await fetch("/api/gallery/videos");
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+        if (!data.videos || data.videos.length === 0) {
+          videoGrid.innerHTML = '<div class="gallery-empty-state">No videos yet.</div>';
+          return;
+        }
+        data.videos.forEach((video) => {
+          const card = document.createElement("div");
+          card.className = "photo-card";
+          const videoEl = document.createElement("video");
+          videoEl.className = "gallery-video-preview";
+          videoEl.controls = true;
+          videoEl.preload = "metadata";
+          videoEl.src = `/api/gallery/videos/${video.id}/file`;
+          card.appendChild(videoEl);
+          const caption = document.createElement("div");
+          caption.className = "photo-caption";
+          caption.innerHTML = `${video.title ? `${escapeHtml(video.title)}<br>` : ""}<span class="photo-date">${escapeHtml(formatGalleryDate(video.createdAt))}</span>`;
+          card.appendChild(caption);
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "photo-remove-btn";
+          removeBtn.textContent = "Delete";
+          removeBtn.type = "button";
+          removeBtn.addEventListener("click", () => deleteVideo(video.id));
+          card.appendChild(removeBtn);
+          videoGrid.appendChild(card);
+        });
+      } catch (err) {
+        videoGrid.innerHTML = '<div class="gallery-empty-state">The videos could not be loaded.</div>';
+      }
+    }
+
+    async function reloadDownloads() {
+      if (!downloadGrid) return;
+      downloadGrid.innerHTML = "";
+      try {
+        const res = await fetch("/api/gallery/downloads");
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+        if (!data.downloads || data.downloads.length === 0) {
+          downloadGrid.innerHTML = '<div class="gallery-empty-state">No downloadable media yet.</div>';
+          return;
+        }
+        data.downloads.forEach((item) => {
+          const card = document.createElement("div");
+          card.className = "photo-card";
+          const link = document.createElement("a");
+          link.className = "download-card";
+          link.href = `/api/gallery/downloads/${item.id}/file`;
+          link.download = item.filename;
+          link.innerHTML = `<i class="fa-solid fa-file-arrow-down"></i><div><strong>${escapeHtml(item.title || item.filename)}</strong><span>${escapeHtml(item.caption || item.filename)}</span></div>`;
+          card.appendChild(link);
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "photo-remove-btn";
+          removeBtn.textContent = "Delete";
+          removeBtn.type = "button";
+          removeBtn.addEventListener("click", () => deleteDownload(item.id));
+          card.appendChild(removeBtn);
+          downloadGrid.appendChild(card);
+        });
+      } catch (err) {
+        downloadGrid.innerHTML = '<div class="gallery-empty-state">The downloadable media could not be loaded.</div>';
+      }
+    }
+
+    async function deleteVideo(id) {
+      const key = getGalleryAdminKey();
+      if (!key) {
+        videoUploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+      if (!window.confirm("Delete this video? This cannot be undone.")) return;
+      try {
+        const res = await fetch(`/api/gallery/videos/${id}`, {
+          method: "DELETE",
+          headers: { "x-admin-key": key },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Delete failed.");
+        videoUploadMessage.textContent = "Video deleted.";
+        reloadVideos();
+      } catch (err) {
+        videoUploadMessage.textContent = err.message;
+      }
+    }
+
+    async function deleteDownload(id) {
+      const key = getGalleryAdminKey();
+      if (!key) {
+        downloadUploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+      if (!window.confirm("Delete this downloadable file? This cannot be undone.")) return;
+      try {
+        const res = await fetch(`/api/gallery/downloads/${id}`, {
+          method: "DELETE",
+          headers: { "x-admin-key": key },
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data.error || "Delete failed.");
+        downloadUploadMessage.textContent = "Download removed.";
+        reloadDownloads();
+      } catch (err) {
+        downloadUploadMessage.textContent = err.message;
+      }
+    }
+
+    videoUploadBtn?.addEventListener("click", async () => {
+      const key = getGalleryAdminKey();
+      if (!key) {
+        videoUploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+      const fileInput = document.getElementById("galleryVideoFileInput");
+      const titleInput = document.getElementById("galleryVideoTitleInput");
+      const captionInput = document.getElementById("galleryVideoCaptionInput");
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        videoUploadMessage.textContent = "Choose a video to upload.";
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        videoUploadMessage.textContent = "Video is too large (max 20MB).";
+        return;
+      }
+      try {
+        const dataBase64 = await fileToBase64(file);
+        await makeUploadRequest("/api/gallery/videos", {
+          filename: file.name,
+          mimeType: file.type,
+          title: titleInput.value.trim(),
+          caption: captionInput.value.trim(),
+          dataBase64,
+        }, videoUploadMessage, "Video uploaded!");
+        fileInput.value = "";
+        titleInput.value = "";
+        captionInput.value = "";
+        reloadVideos();
+      } catch (err) {
+        videoUploadMessage.textContent = err.message;
+      }
+    });
+
+    downloadUploadBtn?.addEventListener("click", async () => {
+      const key = getGalleryAdminKey();
+      if (!key) {
+        downloadUploadMessage.textContent = "Enter your admin key first.";
+        return;
+      }
+      const fileInput = document.getElementById("galleryDownloadFileInput");
+      const titleInput = document.getElementById("galleryDownloadTitleInput");
+      const captionInput = document.getElementById("galleryDownloadCaptionInput");
+      const file = fileInput?.files?.[0];
+      if (!file) {
+        downloadUploadMessage.textContent = "Choose a file to share.";
+        return;
+      }
+      if (file.size > 20 * 1024 * 1024) {
+        downloadUploadMessage.textContent = "File is too large (max 20MB).";
+        return;
+      }
+      try {
+        const dataBase64 = await fileToBase64(file);
+        await makeUploadRequest("/api/gallery/downloads", {
+          filename: file.name,
+          mimeType: file.type,
+          title: titleInput.value.trim(),
+          caption: captionInput.value.trim(),
+          dataBase64,
+        }, downloadUploadMessage, "Download added!");
+        fileInput.value = "";
+        titleInput.value = "";
+        captionInput.value = "";
+        reloadDownloads();
+      } catch (err) {
+        downloadUploadMessage.textContent = err.message;
+      }
+    });
+
     reloadGallery();
+    reloadVideos();
+    reloadDownloads();
   }
 
   function renderInitiatives() {

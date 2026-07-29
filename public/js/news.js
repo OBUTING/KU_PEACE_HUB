@@ -10,6 +10,8 @@
   const filters = document.getElementById("feedFilters");
   const galleryStatusEl = document.getElementById("gallery-status");
   const photoGridEl = document.getElementById("photo-grid");
+  const videoGridEl = document.getElementById("video-grid");
+  const downloadGridEl = document.getElementById("download-grid");
   if (!grid) return;
 
   let items = [];
@@ -282,6 +284,63 @@
     }
   }
 
+  async function loadVideos() {
+    if (!videoGridEl) return;
+    try {
+      const res = await fetch("/api/gallery/videos");
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+      if (!data.videos || data.videos.length === 0) {
+        videoGridEl.innerHTML = '<div class="gallery-empty-state">No videos yet.</div>';
+        return;
+      }
+      videoGridEl.innerHTML = "";
+      data.videos.forEach((video) => {
+        const card = document.createElement("div");
+        card.className = "photo-card";
+        card.innerHTML = `
+          <video controls preload="metadata" src="/api/gallery/videos/${video.id}/file" class="gallery-video-preview"></video>
+          <div class="photo-caption">
+            ${video.title ? `${escapeHtml(video.title)}<br>` : ""}
+            <span class="photo-date">${formatGalleryDate(video.createdAt)}</span>
+          </div>
+        `;
+        videoGridEl.appendChild(card);
+      });
+    } catch (err) {
+      videoGridEl.innerHTML = '<div class="gallery-empty-state">The videos could not be loaded.</div>';
+    }
+  }
+
+  async function loadDownloads() {
+    if (!downloadGridEl) return;
+    try {
+      const res = await fetch("/api/gallery/downloads");
+      const data = await res.json();
+      if (!res.ok || !data.ok) throw new Error(data.error || "Request failed.");
+      if (!data.downloads || data.downloads.length === 0) {
+        downloadGridEl.innerHTML = '<div class="gallery-empty-state">No downloadable media yet.</div>';
+        return;
+      }
+      downloadGridEl.innerHTML = "";
+      data.downloads.forEach((item) => {
+        const card = document.createElement("div");
+        card.className = "photo-card";
+        const link = document.createElement("a");
+        link.className = "download-card";
+        link.href = `/api/gallery/downloads/${item.id}/file`;
+        link.download = item.filename;
+        link.innerHTML = `<i class="fa-solid fa-file-arrow-down"></i><div><strong>${escapeHtml(item.title || item.filename)}</strong><span>${escapeHtml(item.caption || item.filename)}</span></div>`;
+        card.appendChild(link);
+        downloadGridEl.appendChild(card);
+      });
+    } catch (err) {
+      downloadGridEl.innerHTML = '<div class="gallery-empty-state">The downloadable media could not be loaded.</div>';
+    }
+  }
+
   load();
   loadGallery();
+  loadVideos();
+  loadDownloads();
 })();

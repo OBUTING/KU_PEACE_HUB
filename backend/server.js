@@ -35,7 +35,7 @@ const SIGNATURE_COUNT_OFFSET = 10000;
 // Default express.json() limit is 100kb — far too small for base64-encoded
 // photo uploads (a 5MB image becomes ~6.7MB of JSON). 10mb covers the
 // gallery's 5MB-per-photo cap with headroom for the rest of the JSON payload.
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
 app.use(express.static(path.join(__dirname, "..", "public")));
 
 // Google Sign-In — set GOOGLE_CLIENT_ID to the same Client ID used in
@@ -402,6 +402,34 @@ async function initDb() {
     );
   `);
   await pool.query(`ALTER TABLE gallery_images ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS gallery_videos (
+      id UUID PRIMARY KEY,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      video_data BYTEA NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      caption TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`ALTER TABLE gallery_videos ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE gallery_videos ADD COLUMN IF NOT EXISTS caption TEXT NOT NULL DEFAULT '';`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS downloadable_media (
+      id UUID PRIMARY KEY,
+      filename TEXT NOT NULL,
+      mime_type TEXT NOT NULL,
+      file_data BYTEA NOT NULL,
+      title TEXT NOT NULL DEFAULT '',
+      caption TEXT NOT NULL DEFAULT '',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    );
+  `);
+  await pool.query(`ALTER TABLE downloadable_media ADD COLUMN IF NOT EXISTS title TEXT NOT NULL DEFAULT '';`);
+  await pool.query(`ALTER TABLE downloadable_media ADD COLUMN IF NOT EXISTS caption TEXT NOT NULL DEFAULT '';`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS initiatives (
@@ -1768,6 +1796,34 @@ app.get("/api/gallery", async (req, res) => {
   }
 });
 
+// Public — list video items.
+app.get("/api/gallery/videos", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, filename, title, caption, created_at AS "createdAt"
+       FROM gallery_videos ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json({ ok: true, videos: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load the videos." });
+  }
+});
+
+// Public — list downloadable media.
+app.get("/api/gallery/downloads", async (req, res) => {
+  try {
+    const { rows } = await pool.query(
+      `SELECT id, filename, mime_type AS "mimeType", title, caption, created_at AS "createdAt"
+       FROM downloadable_media ORDER BY created_at DESC LIMIT 200`
+    );
+    res.json({ ok: true, downloads: rows });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not load downloadable media." });
+  }
+});
+
 // Public — serve one photo's actual image bytes.
 app.get("/api/gallery/:id/image", async (req, res) => {
   if (!isUuid(req.params.id)) return res.status(400).send("Invalid image id.");
@@ -1784,6 +1840,45 @@ app.get("/api/gallery/:id/image", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).send("Could not load image.");
+  }
+});
+
+// Public — serve one video's actual bytes.
+app.get("/api/gallery/videos/:id/file", async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).send("Invalid video id.");
+  try {
+    const { rows } = await pool.query(
+      `SELECT mime_type AS "mimeType", video_data AS "videoData"
+       FROM gallery_videos WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).send("Video not found.");
+    res.set("Content-Type", rows[0].mimeType);
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(rows[0].videoData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Could not load video.");
+  }
+});
+
+// Public — serve one downloadable media file.
+app.get("/api/gallery/downloads/:id/file", async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).send("Invalid download id.");
+  try {
+    const { rows } = await pool.query(
+      `SELECT mime_type AS "mimeType", file_data AS "fileData", filename
+       FROM downloadable_media WHERE id = $1`,
+      [req.params.id]
+    );
+    if (!rows[0]) return res.status(404).send("File not found.");
+    res.set("Content-Type", rows[0].mimeType);
+    res.set("Content-Disposition", `attachment; filename="${String(rows[0].filename || "download").replace(/"/g, "")}"`);
+    res.set("Cache-Control", "public, max-age=86400");
+    res.send(rows[0].fileData);
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("Could not load downloadable media.");
   }
 });
 
@@ -1832,6 +1927,61 @@ app.post("/api/gallery", requireAdmin, async (req, res) => {
   }
 });
 
+// Admin — upload a video.
+app.post("/api/gallery/videos", requireAdmin, async (req, res) => {
+  const { filename, mimeType, title, caption, dataBase64 } = req.body || {};
+  if (!filename || !mimeType || !dataBase64) {
+    return res.status(400).json({ ok: false, error: "filename, mimeType, and dataBase64 are required." });
+  }
+  if (!String(mimeType).startsWith("video/")) {
+    return res.status(400).json({ ok: false, error: "Only video uploads are allowed." });
+  }
+  let buffer;
+  try {
+    buffer = Buffer.from(dataBase64, "base64");
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: "Could not decode video data." });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO gallery_videos (id, filename, mime_type, video_data, title, caption)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, filename, title, caption, created_at AS "createdAt"`,
+      [crypto.randomUUID(), cleanAdminText(filename, 255), cleanAdminText(mimeType, 100), buffer, cleanAdminText(title, 255), cleanAdminText(caption, 300)]
+    );
+    res.status(201).json({ ok: true, video: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save the video." });
+  }
+});
+
+// Admin — upload a downloadable file.
+app.post("/api/gallery/downloads", requireAdmin, async (req, res) => {
+  const { filename, mimeType, title, caption, dataBase64 } = req.body || {};
+  if (!filename || !mimeType || !dataBase64) {
+    return res.status(400).json({ ok: false, error: "filename, mimeType, and dataBase64 are required." });
+  }
+  let buffer;
+  try {
+    buffer = Buffer.from(dataBase64, "base64");
+  } catch (err) {
+    return res.status(400).json({ ok: false, error: "Could not decode file data." });
+  }
+  try {
+    const { rows } = await pool.query(
+      `INSERT INTO downloadable_media (id, filename, mime_type, file_data, title, caption)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, filename, mime_type AS "mimeType", title, caption, created_at AS "createdAt"`,
+      [crypto.randomUUID(), cleanAdminText(filename, 255), cleanAdminText(mimeType, 100), buffer, cleanAdminText(title, 255), cleanAdminText(caption, 300)]
+    );
+    res.status(201).json({ ok: true, download: rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not save the downloadable media." });
+  }
+});
+
 // Admin — delete a photo.
 app.delete("/api/gallery/:id", requireAdmin, async (req, res) => {
   if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid image id." });
@@ -1842,6 +1992,32 @@ app.delete("/api/gallery/:id", requireAdmin, async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ ok: false, error: "Could not delete the photo." });
+  }
+});
+
+// Admin — delete a video.
+app.delete("/api/gallery/videos/:id", requireAdmin, async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid video id." });
+  try {
+    const { rowCount } = await pool.query(`DELETE FROM gallery_videos WHERE id = $1`, [req.params.id]);
+    if (!rowCount) return res.status(404).json({ ok: false, error: "Video not found." });
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not delete the video." });
+  }
+});
+
+// Admin — delete a downloadable item.
+app.delete("/api/gallery/downloads/:id", requireAdmin, async (req, res) => {
+  if (!isUuid(req.params.id)) return res.status(400).json({ ok: false, error: "Invalid download id." });
+  try {
+    const { rowCount } = await pool.query(`DELETE FROM downloadable_media WHERE id = $1`, [req.params.id]);
+    if (!rowCount) return res.status(404).json({ ok: false, error: "Download item not found." });
+    res.json({ ok: true, id: req.params.id });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ ok: false, error: "Could not delete the download item." });
   }
 });
 

@@ -412,6 +412,14 @@
   background: #fbfcfa;
 }
 .gallery-upload-form .file-drop { min-height: 104px; }
+.gallery-upload-form.compact { padding: 14px 16px; }
+.gallery-subsection { display: grid; gap: 12px; padding-top: 8px; }
+.gallery-subsection-title { margin: 0; color: var(--admin-ink); font-size: .95rem; font-weight: 700; }
+.gallery-video-preview { display: block; width: 100%; height: 200px; object-fit: cover; background: var(--admin-mint); }
+.download-card { display: flex; align-items: center; gap: 12px; min-height: 126px; padding: 16px; color: var(--admin-ink); text-decoration: none; }
+.download-card i { font-size: 1.15rem; color: var(--admin-accent); }
+.download-card strong { display: block; margin-bottom: 3px; font-size: .84rem; }
+.download-card span { display: block; color: var(--admin-muted); font-size: .72rem; }
 .photo-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
