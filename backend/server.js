@@ -1786,7 +1786,7 @@ app.get("/api/reports", requireAdmin, async (req, res) => {
 // large binary blobs.
 // ---------------------------------------------------------------------------
 
-const GALLERY_MAX_BYTES = 5 * 1024 * 1024; // 5MB per photo
+const GALLERY_MAX_BYTES = 15 * 1024 * 1024; // 15MB per photo
 
 // Public — list gallery photos. Metadata only; actual bytes are fetched
 // separately per photo by /api/gallery/:id/image so this list stays small.
@@ -1910,7 +1910,7 @@ app.post("/api/gallery", requireAdmin, async (req, res) => {
     return res.status(400).json({ ok: false, error: "Could not decode image data." });
   }
   if (buffer.length > GALLERY_MAX_BYTES) {
-    return res.status(413).json({ ok: false, error: "Image is too large. Max 5MB per photo." });
+    return res.status(413).json({ ok: false, error: "Image is too large. Max 15MB per photo." });
   }
 
   try {

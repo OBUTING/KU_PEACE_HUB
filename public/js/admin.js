@@ -819,9 +819,9 @@
         return;
       }
 
-      const oversized = files.find((file) => file.size > 5 * 1024 * 1024);
+      const oversized = files.find((file) => file.size > 15 * 1024 * 1024);
       if (oversized) {
-        uploadMessage.textContent = "One or more files are too large (max 5MB each).";
+        uploadMessage.textContent = "One or more files are too large (max 15MB each).";
         return;
       }
 
