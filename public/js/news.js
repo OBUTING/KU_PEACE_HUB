@@ -213,8 +213,14 @@
             const slide = document.createElement("div");
             slide.className = `gallery-carousel-slide${index === 0 ? " is-active" : ""}`;
 
+            const slideRow = document.createElement("div");
+            slideRow.className = "row g-4 justify-content-center";
+
+            const cardCol = document.createElement("div");
+            cardCol.className = "col-12 col-md-6 col-lg-4 d-flex";
+
             const card = document.createElement("div");
-            card.className = "photo-card";
+            card.className = "photo-card h-100 w-100";
 
             const img = document.createElement("img");
             img.src = `/api/gallery/${photo.id}/image`;
@@ -232,7 +238,9 @@
               card.appendChild(caption);
             }
 
-            slide.appendChild(card);
+            cardCol.appendChild(card);
+            slideRow.appendChild(cardCol);
+            slide.appendChild(slideRow);
             track.appendChild(slide);
 
             const dot = document.createElement("button");
@@ -250,10 +258,13 @@
           window.setInterval(() => showSlide((Array.from(track.children).findIndex((item) => item.classList.contains("is-active")) + 1) % photos.length), 5000);
         } else {
           const items = document.createElement("div");
-          items.className = "gallery-group-items";
+          items.className = "gallery-group-items row g-4 align-items-stretch";
           photos.forEach((photo) => {
+            const cardCol = document.createElement("div");
+            cardCol.className = "col-12 col-md-6 col-lg-4 d-flex";
+
             const card = document.createElement("div");
-            card.className = "photo-card";
+            card.className = "photo-card h-100 w-100";
 
             const img = document.createElement("img");
             img.src = `/api/gallery/${photo.id}/image`;
@@ -271,7 +282,8 @@
               card.appendChild(caption);
             }
 
-            items.appendChild(card);
+            cardCol.appendChild(card);
+            items.appendChild(cardCol);
           });
           section.appendChild(items);
         }
