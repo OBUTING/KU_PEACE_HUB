@@ -217,7 +217,7 @@
             slideRow.className = "row g-4 justify-content-center";
 
             const cardCol = document.createElement("div");
-            cardCol.className = "col-12 col-md-6 col-lg-4 d-flex";
+            cardCol.className = "col-12 col-md-6 d-flex";
 
             const card = document.createElement("div");
             card.className = "photo-card h-100 w-100";
@@ -261,7 +261,7 @@
           items.className = "gallery-group-items row g-4 align-items-stretch";
           photos.forEach((photo) => {
             const cardCol = document.createElement("div");
-            cardCol.className = "col-12 col-md-6 col-lg-4 d-flex";
+            cardCol.className = "col-12 col-md-6 d-flex";
 
             const card = document.createElement("div");
             card.className = "photo-card h-100 w-100";
